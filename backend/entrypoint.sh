@@ -4,11 +4,10 @@
 set -e
 
 echo "🔧 Running database migrations..."
-# Run migrations from the backend directory
-# Note: alembic.ini is in /app/backend/alembic.ini
-cd /app/backend
-alembic upgrade head
+export PYTHONPATH=$PYTHONPATH:/app
+
+# Run migrations using the config file in the backend directory
+alembic -c /app/backend/alembic.ini upgrade head
 
 echo "🚀 Starting Venom Backend API..."
-cd /app
 exec uvicorn backend.main:app --host 0.0.0.0 --port 8000
