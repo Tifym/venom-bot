@@ -1,8 +1,19 @@
 "use client";
 
+import { ReactNode } from "react";
+
+interface WeightItem {
+  name: string;
+  score: number | string;
+  filled?: number;
+  total?: number;
+  isText?: boolean;
+  extras: ReactNode;
+}
+
 export function WeightSliders() {
-  const weights = [
-    { name: "Divergence", score: 30, filled: 7, total: 10,  extras: <span className="text-white/40 ml-2">Min TFs: <span className="text-[#00FFFF] bg-white/5 px-1 rounded cursor-pointer">1 ▼</span> | Ind: <label className="cursor-pointer hover:text-white"><input type="checkbox" defaultChecked className="mr-1 accent-venom" />RSI</label> <label className="cursor-pointer hover:text-white"><input type="checkbox" defaultChecked className="mr-1 accent-venom" />Stoch</label></span> },
+  const weights: WeightItem[] = [
+    { name: "Divergence", score: 30, filled: 7, total: 10, extras: <span className="text-white/40 ml-2">Min TFs: <span className="text-[#00FFFF] bg-white/5 px-1 rounded cursor-pointer">1 ▼</span> | Ind: <label className="cursor-pointer hover:text-white"><input type="checkbox" defaultChecked className="mr-1 accent-venom" />RSI</label> <label className="cursor-pointer hover:text-white"><input type="checkbox" defaultChecked className="mr-1 accent-venom" />Stoch</label></span> },
     { name: "Order Book", score: 25, filled: 6, total: 10, extras: <span className="text-white/40 ml-2">Min Ratio: <span className="text-[#00FFFF] bg-white/5 px-1 rounded cursor-pointer">1.3 ▼</span> | Spread: <span className="text-[#00FFFF] bg-white/5 px-1 rounded cursor-pointer">&lt;0.05% ▼</span></span> },
     { name: "Volume", score: 20, filled: 4, total: 10, extras: <span className="text-white/40 ml-2">Min Mult: <span className="text-[#00FFFF] bg-white/5 px-1 rounded cursor-pointer">1.2x ▼</span></span> },
     { name: "Funding", score: 15, filled: 3, total: 10, extras: <span className="text-white/40 ml-2">Require Aligned: <input type="checkbox" defaultChecked className="ml-1 accent-venom" /></span> },
@@ -21,8 +32,8 @@ export function WeightSliders() {
               
               {!w.isText ? (
                 <div className="flex gap-0.5 opacity-80">
-                  {Array.from({length: w.total}).map((_, i) => (
-                    <div key={i} className={`w-1.5 h-3 ${i < w.filled ? 'bg-venom shadow-[0_0_5px_rgba(0,255,65,0.5)]' : 'bg-white/10'}`} />
+                  {Array.from({length: w.total ?? 10}).map((_, i) => (
+                    <div key={i} className={`w-1.5 h-3 ${i < (w.filled ?? 0) ? 'bg-venom shadow-[0_0_5px_rgba(0,255,65,0.5)]' : 'bg-white/10'}`} />
                   ))}
                 </div>
               ) : (
