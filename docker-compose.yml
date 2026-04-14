@@ -9,16 +9,28 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
+    # Keeping default fallbacks just in case .env doesn't load
     environment:
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql://venom:password@postgres:5432/venom_bot
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./venom-panel
+      dockerfile: Dockerfile
+    container_name: venom-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
   postgres:
     image: postgres:15-alpine
