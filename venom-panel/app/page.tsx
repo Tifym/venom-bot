@@ -1,9 +1,11 @@
 import { Header } from "@/components/Header";
 import { FooterStatus } from "@/components/FooterStatus";
-import { VenomChart } from "@/components/VenomChart";
+import dynamic from "next/dynamic";
 import { ControlDeck } from "@/components/ControlDeck";
 import { VenomFeed } from "@/components/VenomFeed";
 import { VenomStats } from "@/components/VenomStats";
+
+const VenomChart = dynamic(() => import("@/components/VenomChart").then(m => m.VenomChart), { ssr: false });
 
 export default function Home() {
   return (
