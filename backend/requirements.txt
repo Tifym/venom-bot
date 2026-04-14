@@ -1,8 +1,10 @@
 fastapi>=0.100.0
-numpy>=1.26.0
 uvicorn[standard]>=0.22.0
 websockets>=11.0.3
 aiohttp>=3.8.0
+httpx>=0.25.0
+pandas>=2.1.0
+numpy>=1.26.0
 python-telegram-bot>=20.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
@@ -14,4 +16,3 @@ pytest>=7.4.0
 pytest-asyncio>=0.21.1
 pytest-cov>=4.1.0
 alembic>=1.11.1
-
