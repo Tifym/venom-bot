@@ -67,3 +67,5 @@ export function VenomChart() {
     </div>
   );
 }
+
+export default VenomChart;

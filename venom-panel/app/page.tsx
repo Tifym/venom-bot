@@ -5,7 +5,7 @@ import { ControlDeck } from "@/components/ControlDeck";
 import { VenomFeed } from "@/components/VenomFeed";
 import { VenomStats } from "@/components/VenomStats";
 
-const VenomChart = dynamic(() => import("@/components/VenomChart").then(m => m.VenomChart), { ssr: false });
+const VenomChart = dynamic(() => import("@/components/VenomChart"), { ssr: false });
 
 export default function Home() {
   return (
