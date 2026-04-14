@@ -9,10 +9,10 @@ class OrderBookTracker:
         self.last_update_time = 0.0
         self.stale_threshold_ms = stale_threshold_ms
 
-    def update(self, ob_update: OrderBookUpdate):
-        # Expected depth20 update
-        self.bids = sorted(ob_update.bids, key=lambda x: x[0], reverse=True)[:5]
-        self.asks = sorted(ob_update.asks, key=lambda x: x[0], reverse=False)[:5]
+    def update(self, bid_vol: float, ask_vol: float, best_bid: float, best_ask: float):
+        """Accept raw pre-aggregated volumes directly from the Binance depth stream."""
+        self.bids = [(best_bid, bid_vol)]
+        self.asks = [(best_ask, ask_vol)]
         self.last_update_time = time.time()
 
     def calculate_imbalance(self) -> Tuple[float, float]:
