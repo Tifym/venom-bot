@@ -26,17 +26,17 @@ export default function Home() {
         {marketData.connected ? 'LIVE DATA FEED ACTIVE — MOCK DATA STRICTLY PROHIBITED' : 'DISCONNECTED — RECONNECTING...'}
       </div>
 
-      <div className="flex-1 p-6 flex flex-col xl:flex-row gap-6 h-[calc(100vh-104px)] overflow-hidden">
+      <div className="flex-1 p-4 lg:p-6 flex flex-col xl:flex-row gap-6 overflow-y-auto">
         {/* Left Column - Chart & Deck */}
-        <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+        <div className="flex-[2] flex flex-col gap-6">
           <VenomChart liveData={liveData} />
           <ControlDeck />
         </div>
 
         {/* Right Column - Feed & Stats */}
-        <div className="w-full xl:w-[600px] flex flex-col gap-6 overflow-y-auto pr-2">
-          <VenomFeed signals={signals} />
+        <div className="flex-1 flex flex-col gap-6 min-w-[350px]">
           <VenomStats stats={marketData} />
+          <VenomFeed signals={signals} />
         </div>
       </div>
 

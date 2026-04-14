@@ -51,6 +51,12 @@ async def process_binance_message(data: Dict[str, Any]) -> None:
 
         if "kline" in stream:
             k = payload.get("k", {})
+            # Broadcast even if not closed, for real-time price movement
+            await ws_router.frontend_ws_manager.broadcast({
+                "stream": stream,
+                "data": payload
+            })
+
             if k.get("x"):  # Candle closed
                 candle = {
                     "open": float(k["o"]),
@@ -95,6 +101,13 @@ async def process_binance_message(data: Dict[str, Any]) -> None:
                 bid_vol = sum(float(b[1]) for b in bids[:5])
                 ask_vol = sum(float(a[1]) for a in asks[:5])
                 signal_engine.ob_tracker.update(bid_vol, ask_vol, float(bids[0][0]), float(asks[0][0]))
+                
+                # Broadcast ratio periodically or on significant change
+                ratio = bid_vol / ask_vol if ask_vol > 0 else 1.0
+                await ws_router.frontend_ws_manager.broadcast({
+                    "type": "orderbook_ratio",
+                    "ratio": ratio
+                })
 
         elif "forceOrder" in stream:
             # Liquidation event
@@ -110,6 +123,11 @@ async def process_binance_message(data: Dict[str, Any]) -> None:
             rate = float(payload.get("r", 0))
             next_time = int(payload.get("T", 0))
             signal_engine.funding_tracker.update(rate, next_time)
+            # Broadcast to UI
+            await ws_router.frontend_ws_manager.broadcast({
+                "stream": stream,
+                "data": payload
+            })
 
     except Exception as e:
         logger.error("binance_message_processing_error", error=str(e))
