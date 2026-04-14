@@ -2,7 +2,10 @@
 
 import { Activity, Settings, BarChart2 } from "lucide-react";
 
-export function Header() {
+export function Header({ stats }: { stats?: any }) {
+  const price = stats?.price || 0;
+  const change = stats?.change || 0;
+
   return (
     <div className="fixed top-0 left-0 right-0 h-16 glass-panel border-x-0 border-t-0 rounded-none z-50 flex items-center justify-between px-6">
       <div className="flex items-center gap-3">
@@ -13,7 +16,12 @@ export function Header() {
       <div className="flex gap-8 items-center bg-black/20 px-6 py-2 rounded-full border border-white/5">
         <div className="flex flex-col items-center">
           <span className="text-[10px] text-white/50 uppercase tracking-widest font-mono">BTC/USDT</span>
-          <span className="font-mono text-toxic font-medium tracking-tight">$64,235.50 <span className="text-venom text-xs">▲1.2%</span></span>
+          <span className="font-mono text-toxic font-medium tracking-tight">
+            ${price.toLocaleString()} 
+            <span className={change >= 0 ? "text-venom text-xs ml-2" : "text-alert text-xs ml-2"}>
+              {change >= 0 ? "▲" : "▼"}{Math.abs(change).toFixed(2)}%
+            </span>
+          </span>
         </div>
         <div className="w-[1px] h-8 bg-white/10" />
         <div className="flex flex-col items-center">
@@ -24,9 +32,9 @@ export function Header() {
         <div className="flex flex-col items-center">
           <span className="text-[10px] text-white/50 uppercase tracking-widest font-mono">STREAMS</span>
           <div className="flex gap-1 mt-1">
-            <div className="w-2 h-2 rounded-full bg-venom chart-glow" />
-            <div className="w-2 h-2 rounded-full bg-venom chart-glow" />
-            <div className="w-2 h-2 rounded-full bg-venom chart-glow" />
+            <div className={`w-2 h-2 rounded-full ${stats?.connected ? 'bg-venom chart-glow' : 'bg-white/10'}`} />
+            <div className={`w-2 h-2 rounded-full ${stats?.connected ? 'bg-venom chart-glow' : 'bg-white/10'}`} />
+            <div className={`w-2 h-2 rounded-full ${stats?.connected ? 'bg-venom chart-glow' : 'bg-white/10'}`} />
           </div>
         </div>
       </div>

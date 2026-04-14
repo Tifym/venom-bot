@@ -10,8 +10,11 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source into backend/ so relative imports work
+# Copy backend source into backend/
 COPY . ./backend/
+
+# Set Python path to /app so 'import backend' works
+ENV PYTHONPATH=/app
 
 # Make entrypoint executable
 RUN chmod +x ./backend/entrypoint.sh

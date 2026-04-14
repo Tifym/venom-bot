@@ -1,4 +1,64 @@
-export function useWebSocket(url: string) {
-  // Real implementation will connect to Next.js API route proxying backend FastApi
-  return { connected: true, latency: 12 };
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+export function useWebSocket() {
+  const [data, setData] = useState<any>(null);
+  const [connected, setConnected] = useState(false);
+  const [latency, setLatency] = useState(0);
+  const socketRef = useRef<WebSocket | null>(null);
+
+  const connect = useCallback(() => {
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+    
+    if (socketRef.current?.readyState === WebSocket.OPEN) return;
+
+    console.log('Connecting to Venom WebSocket:', wsUrl);
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setConnected(true);
+      console.log('Venom WebSocket Connected');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        setData(message);
+        
+        // Simple latency check if timestamp is present
+        if (message.timestamp) {
+          setLatency(Date.now() - message.timestamp);
+        }
+      } catch (err) {
+        console.error('WS Message Error:', err);
+      }
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      console.log('Venom WebSocket Disconnected. Retrying in 3s...');
+      setTimeout(connect, 3000);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WS Error:', err);
+      ws.close();
+    };
+
+    socketRef.current = ws;
+  }, []);
+
+  useEffect(() => {
+    connect();
+    return () => {
+      socketRef.current?.close();
+    };
+  }, [connect]);
+
+  const send = useCallback((msg: any) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify(msg));
+    }
+  }, []);
+
+  return { data, connected, latency, send };
 }
