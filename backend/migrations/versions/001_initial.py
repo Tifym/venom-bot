@@ -29,7 +29,8 @@ def upgrade() -> None:
         sa.Column('tp1', sa.Float(), nullable=False),
         sa.Column('tp2', sa.Float(), nullable=False),
         sa.Column('status', sa.String(), nullable=False, server_default='PENDING'),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        if_not_exists=True
     )
 
 def downgrade() -> None:
