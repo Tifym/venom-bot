@@ -55,9 +55,9 @@ async def get_signals():
         "signals": [
             {
                 "id": s.id,
-                "direction": s.direction.name,
+                "direction": getattr(s.direction, "name", str(s.direction)),
                 "score": s.total_score,
-                "zone": s.zone.name,
+                "zone": s.zone if isinstance(s.zone, str) else getattr(s.zone, "name", str(s.zone)),
                 "entry_low": s.entry_low,
                 "entry_high": s.entry_high,
                 "stop_loss": s.stop_loss,
@@ -79,7 +79,8 @@ async def get_stats():
     
     zone_counts = {}
     for s in signal_engine.recent_signals:
-        zone_counts[s.zone.name] = zone_counts.get(s.zone.name, 0) + 1
+        z_name = s.zone if isinstance(s.zone, str) else getattr(s.zone, "name", str(s.zone))
+        zone_counts[z_name] = zone_counts.get(z_name, 0) + 1
     best_zone = max(zone_counts, key=zone_counts.get) if zone_counts else "NONE"
 
     return {
@@ -91,6 +92,6 @@ async def get_stats():
         "best_tf": "5M", # Fixed to primary TF until TF analyzer is fully built
         "liq_boosts": sum(1 for s in signal_engine.recent_signals if getattr(s.confluence, 'liquidation_boost', 0) > 0),
         "orderbook_ratio": signal_engine.ob_tracker.calculate_imbalance()[0] if signal_engine.ob_tracker else 0,
-        "funding_rate": signal_engine.funding_tracker.last_funding_rate if signal_engine.funding_tracker else 0,
+        "funding_rate": getattr(signal_engine.funding_tracker, "current_funding_rate", 0) if signal_engine.funding_tracker else 0,
         "latency": 0
     }

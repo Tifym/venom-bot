@@ -9,7 +9,7 @@ export function useWebSocket() {
   const connect = useCallback(() => {
     if (typeof window === 'undefined') return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.host}/ws`;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.hostname}:8000/ws`;
     
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 

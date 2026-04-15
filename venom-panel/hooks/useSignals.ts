@@ -7,8 +7,7 @@ export function useSignals() {
   useEffect(() => {
     const fetchSignals = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || `http://${window.location.hostname}:8000`;
-        const res = await fetch(`${apiUrl}/api/signals?limit=20`);
+        const res = await fetch(`/api/signals?limit=20`);
         if (res.ok) {
           const data = await res.json();
           setSignals(data);
