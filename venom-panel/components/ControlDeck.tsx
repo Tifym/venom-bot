@@ -344,62 +344,121 @@ export function ControlDeck() {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                 {/* TF Diversion */}
-                 <div className="flex flex-col gap-1">
-                   <label className="text-[9px] text-white/40 font-mono uppercase">Div Timeframe</label>
-                   <select 
-                     value={config.preset?.custom_options?.tf_divergence || "1m"}
-                     onChange={e => setConfig({
-                       ...config,
-                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_divergence: e.target.value } }
-                     })}
-                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
-                   >
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
-                   </select>
+              {/* Atomic Matrix: Multi-TF Selectors */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 p-4 bg-white/5 rounded-lg border border-white/5">
+                 {/* TF Diversion Matrix */}
+                 <div className="flex flex-col gap-2">
+                   <label className="text-[10px] text-toxic font-mono uppercase tracking-widest flex items-center gap-2">
+                     <Zap size={14} /> Divergence Matrix
+                   </label>
+                   <div className="flex flex-wrap gap-1">
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                       <button
+                         key={tf}
+                         onClick={() => {
+                            const current = config.preset?.custom_options?.tfs_divergence || [];
+                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_divergence: next } } });
+                         }}
+                         className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
+                           (config.preset?.custom_options?.tfs_divergence || []).includes(tf) 
+                           ? "bg-toxic/20 border-toxic text-toxic" : "border-white/10 text-white/40 hover:border-white/20"
+                         }`}
+                       >
+                         {tf}
+                       </button>
+                     ))}
+                   </div>
                  </div>
-                 {/* TF BB */}
-                 <div className="flex flex-col gap-1">
-                   <label className="text-[9px] text-white/40 font-mono uppercase">BB Timeframe</label>
-                   <select 
-                     value={config.preset?.custom_options?.tf_bollinger || "1m"}
-                     onChange={e => setConfig({
-                       ...config,
-                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_bollinger: e.target.value } }
-                     })}
-                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
-                   >
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
-                   </select>
+
+                 {/* TF Bollinger Matrix */}
+                 <div className="flex flex-col gap-2">
+                   <label className="text-[10px] text-toxic font-mono uppercase tracking-widest flex items-center gap-2">
+                     <Activity size={14} /> Bollinger Matrix
+                   </label>
+                   <div className="flex flex-wrap gap-1">
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                       <button
+                         key={tf}
+                         onClick={() => {
+                            const current = config.preset?.custom_options?.tfs_bollinger || [];
+                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_bollinger: next } } });
+                         }}
+                         className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
+                           (config.preset?.custom_options?.tfs_bollinger || []).includes(tf) 
+                           ? "bg-toxic/20 border-toxic text-toxic" : "border-white/10 text-white/40 hover:border-white/20"
+                         }`}
+                       >
+                         {tf}
+                       </button>
+                     ))}
+                   </div>
                  </div>
-                 {/* TF Fib */}
-                 <div className="flex flex-col gap-1">
-                   <label className="text-[9px] text-white/40 font-mono uppercase">Fib Timeframe</label>
-                   <select 
-                     value={config.preset?.custom_options?.tf_fib || "1m"}
-                     onChange={e => setConfig({
-                       ...config,
-                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_fib: e.target.value } }
-                     })}
-                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
-                   >
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
-                   </select>
+
+                 {/* TF Fibonacci Matrix */}
+                 <div className="flex flex-col gap-2">
+                   <label className="text-[10px] text-toxic font-mono uppercase tracking-widest flex items-center gap-2">
+                     <Layers size={14} /> Fibonacci Matrix
+                   </label>
+                   <div className="flex flex-wrap gap-1">
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                       <button
+                         key={tf}
+                         onClick={() => {
+                            const current = config.preset?.custom_options?.tfs_fib || [];
+                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_fib: next } } });
+                         }}
+                         className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
+                           (config.preset?.custom_options?.tfs_fib || []).includes(tf) 
+                           ? "bg-toxic/20 border-toxic text-toxic" : "border-white/10 text-white/40 hover:border-white/20"
+                         }`}
+                       >
+                         {tf}
+                       </button>
+                     ))}
+                   </div>
                  </div>
-                 {/* TF Chart Default */}
+              </div>
+
+              {/* Raw Data Thresholds */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 border-t border-white/5 pt-4">
                  <div className="flex flex-col gap-1">
-                   <label className="text-[9px] text-white/40 font-mono uppercase">Default Chart</label>
-                   <select 
-                     value={config.preset?.custom_options?.tf_chart || "1m"}
-                     onChange={e => setConfig({
-                       ...config,
-                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_chart: e.target.value } }
-                     })}
-                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
-                   >
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
-                   </select>
+                   <label className="text-[9px] text-white/40 font-mono uppercase">OB Wall Ratio</label>
+                   <input 
+                     type="number" step="0.1"
+                     value={config.preset?.custom_options?.ob_ratio_min || 2.5}
+                     onChange={e => setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, ob_ratio_min: parseFloat(e.target.value) } } })}
+                     className="bg-black/40 border border-white/10 rounded px-2 py-1 font-mono text-xs text-toxic"
+                   />
+                 </div>
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">Liq Burst ($)</label>
+                   <input 
+                     type="number"
+                     value={config.preset?.custom_options?.liq_burst_usd || 50000}
+                     onChange={e => setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, liq_burst_usd: parseInt(e.target.value) } } })}
+                     className="bg-black/40 border border-white/10 rounded px-2 py-1 font-mono text-xs text-toxic"
+                   />
+                 </div>
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">OI Spike %</label>
+                   <input 
+                     type="number" step="0.01"
+                     value={config.preset?.custom_options?.oi_spike_pct || 1.2}
+                     onChange={e => setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, oi_spike_pct: parseFloat(e.target.value) } } })}
+                     className="bg-black/40 border border-white/10 rounded px-2 py-1 font-mono text-xs text-toxic"
+                   />
+                 </div>
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">Min. Fee (Sat)</label>
+                   <input 
+                     type="number"
+                     value={config.preset?.custom_options?.mempool_fee_min || 5}
+                     onChange={e => setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, mempool_fee_min: parseInt(e.target.value) } } })}
+                     className="bg-black/40 border border-white/10 rounded px-2 py-1 font-mono text-xs text-toxic"
+                   />
                  </div>
               </div>
             </div>

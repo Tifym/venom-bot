@@ -32,11 +32,16 @@ def _build_config_dict() -> dict:
     if p.custom_options:
         base["preset"]["custom_options"] = {
             "name": p.custom_options.name,
-            "bbands_lower": p.custom_options.bbands_lower,
-            "bbands_upper": p.custom_options.bbands_upper,
-            "bbands_enabled": p.custom_options.bbands_enabled,
-            "timeframes": p.custom_options.timeframes,
+            "tfs_divergence": p.custom_options.tfs_divergence,
+            "tfs_bollinger": p.custom_options.tfs_bollinger,
+            "tfs_fib": p.custom_options.tfs_fib,
+            "bbands_deviation": p.custom_options.bbands_deviation,
             "custom_fibs": p.custom_options.custom_fibs,
+            "ob_ratio_min": p.custom_options.ob_ratio_min,
+            "liq_burst_usd": p.custom_options.liq_burst_usd,
+            "oi_spike_pct": p.custom_options.oi_spike_pct,
+            "mempool_fee_min": p.custom_options.mempool_fee_min,
+            "tf_chart": p.custom_options.tf_chart,
         }
     return base
 
@@ -71,11 +76,16 @@ async def load_config_from_redis():
             c = preset_data["custom_options"]
             opts = p.custom_options
             if "name" in c: opts.name = c["name"]
-            if "bbands_enabled" in c: opts.bbands_enabled = c["bbands_enabled"]
-            if "bbands_lower" in c: opts.bbands_lower = float(c["bbands_lower"])
-            if "bbands_upper" in c: opts.bbands_upper = float(c["bbands_upper"])
-            if "timeframes" in c: opts.timeframes = c["timeframes"]
+            if "tfs_divergence" in c: opts.tfs_divergence = c["tfs_divergence"]
+            if "tfs_bollinger" in c: opts.tfs_bollinger = c["tfs_bollinger"]
+            if "tfs_fib" in c: opts.tfs_fib = c["tfs_fib"]
+            if "bbands_deviation" in c: opts.bbands_deviation = float(c["bbands_deviation"])
             if "custom_fibs" in c: opts.custom_fibs = c["custom_fibs"]
+            if "ob_ratio_min" in c: opts.ob_ratio_min = float(c["ob_ratio_min"])
+            if "liq_burst_usd" in c: opts.liq_burst_usd = float(c["liq_burst_usd"])
+            if "oi_spike_pct" in c: opts.oi_spike_pct = float(c["oi_spike_pct"])
+            if "mempool_fee_min" in c: opts.mempool_fee_min = int(c["mempool_fee_min"])
+            if "tf_chart" in c: opts.tf_chart = c["tf_chart"]
 
         logger.info("config_restored_from_redis", mode=mode_str)
     except Exception as e:
@@ -113,11 +123,16 @@ async def update_config(payload: Dict[str, Any]):
             c = preset_data["custom_options"]
             opts = p.custom_options
             if "name" in c: opts.name = c["name"]
-            if "bbands_enabled" in c: opts.bbands_enabled = c["bbands_enabled"]
-            if "bbands_lower" in c: opts.bbands_lower = float(c["bbands_lower"])
-            if "bbands_upper" in c: opts.bbands_upper = float(c["bbands_upper"])
-            if "timeframes" in c: opts.timeframes = c["timeframes"]
+            if "tfs_divergence" in c: opts.tfs_divergence = c["tfs_divergence"]
+            if "tfs_bollinger" in c: opts.tfs_bollinger = c["tfs_bollinger"]
+            if "tfs_fib" in c: opts.tfs_fib = c["tfs_fib"]
+            if "bbands_deviation" in c: opts.bbands_deviation = float(c["bbands_deviation"])
             if "custom_fibs" in c: opts.custom_fibs = c["custom_fibs"]
+            if "ob_ratio_min" in c: opts.ob_ratio_min = float(c["ob_ratio_min"])
+            if "liq_burst_usd" in c: opts.liq_burst_usd = float(c["liq_burst_usd"])
+            if "oi_spike_pct" in c: opts.oi_spike_pct = float(c["oi_spike_pct"])
+            if "mempool_fee_min" in c: opts.mempool_fee_min = int(c["mempool_fee_min"])
+            if "tf_chart" in c: opts.tf_chart = c["tf_chart"]
 
     # Persist to Redis so it survives refreshes
     await _save_config()
@@ -274,3 +289,34 @@ async def get_history(timeframe: str = "1m"):
             "volume": c.volume
         })
     return result
+
+@router.get("/drawings")
+async def get_drawings(timeframe: str = None):
+    from ..database.postgres_client import postgres_client
+    drawings = await postgres_client.get_drawings(timeframe)
+    return [
+        {
+            "id": d.id,
+            "type": d.type,
+            "data": json.loads(d.data),
+            "timeframe": d.timeframe
+        }
+        for d in drawings
+    ]
+
+@router.post("/drawings")
+async def save_drawing(payload: Dict[str, Any]):
+    from ..database.postgres_client import postgres_client
+    await postgres_client.save_drawing(
+        d_id=payload["id"],
+        d_type=payload["type"],
+        d_data=json.dumps(payload["data"]),
+        tf=payload["timeframe"]
+    )
+    return {"status": "success"}
+
+@router.delete("/drawings/{drawing_id}")
+async def delete_drawing(drawing_id: str):
+    from ..database.postgres_client import postgres_client
+    await postgres_client.delete_drawing(drawing_id)
+    return {"status": "success"}

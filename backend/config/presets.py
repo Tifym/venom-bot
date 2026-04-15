@@ -3,15 +3,24 @@ from typing import List, Dict, Optional
 
 class CustomOptions(BaseModel):
     name: str = "BLASTER_V1"
-    bbands_lower: float = 2.0
-    bbands_upper: float = 2.0
-    bbands_enabled: bool = False
+    
+    # Technical Matrix (Multi-TF Support)
+    tfs_divergence: List[str] = ["1m", "5m"]
+    tfs_bollinger: List[str] = ["1m"]
+    tfs_fib: List[str] = ["15m"]
+    
+    # Technical Parameters
+    bbands_deviation: float = 2.0
     custom_fibs: Dict[str, List[float]] = {}
-    timeframes: List[str] = ["1m", "5m"] # Legacy support
+    
+    # Raw Data Matrix
+    ob_ratio_min: float = 2.5
+    liq_burst_usd: float = 50000.0
+    oi_spike_pct: float = 1.2
+    mempool_fee_min: int = 5
+    
+    # Visuals
     tf_chart: str = "1m"
-    tf_divergence: str = "1m"
-    tf_bollinger: str = "1m"
-    tf_fib: str = "1m"
 
 class PresetMode(BaseModel):
     min_score: int

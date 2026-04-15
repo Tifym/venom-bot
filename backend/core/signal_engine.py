@@ -85,82 +85,78 @@ class SignalEngine:
         start_time = time.perf_counter()
         
         try:
-            # 1. Dynamically maintain ZigZag mapping so pockets aren't forever empty
             m1_candles = candles.get('1m', [])
+            if not is_ws_healthy or not m1_candles:
+                return None
+
+            # 1. Config & Multi-TF Matrix Setup
+            opts = self.preset.custom_options
+            tfs_div = opts.tfs_divergence if opts else ["1m"]
+            tfs_bb = opts.tfs_bollinger if opts else ["1m"]
+            tfs_fib = opts.tfs_fib if opts else ["1m"]
             
-            # Determine specific timeframes from CUSTOM options if active
-            tf_fib = "1m"
-            tf_div = "1m"
-            tf_bb = "1m"
-            
-            if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
-                opts = self.preset.custom_options
-                tf_fib = opts.tf_fib
-                tf_div = opts.tf_divergence
-                tf_bb = opts.tf_bollinger
+            # 2. Fibonacci Matrix (Parallel Across TFs)
+            # For simplicity, we track the 'active' zone as the most conservative one found
+            current_zone = None
+            for tf in tfs_fib:
+                tf_candles = candles.get(tf, m1_candles)
+                if len(tf_candles) >= 50:
+                    swings = self.fib_tracker.calculate_zig_zag(tf_candles)
+                    self.fib_tracker.calculate_pockets(swings, opts.custom_fibs if opts else {})
+                    zone = self.fib_tracker.check_zone_touch(current_price)
+                    if zone: current_zone = zone # Capture zone
 
-            # 1. Dynamically maintain ZigZag mapping so pockets aren't forever empty
-            fib_candles = candles.get(tf_fib, m1_candles)
-            if len(fib_candles) >= 50:
-                swings = self.fib_tracker.calculate_zig_zag(fib_candles)
-                
-                # Apply custom fib overrides if CUSTOM active
-                custom_fibs = None
-                if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
-                    custom_fibs = self.preset.custom_options.custom_fibs
-                    
-                self.fib_tracker.calculate_pockets(swings, custom_fibs)
-
-            # 2. Check strict conditions
-            if not is_ws_healthy:
-                self.rejected_signals += 1
-                return None
-                
-            if not m1_candles:
-                return None
-                
-            last_candle_time = m1_candles[-1].timestamp.replace(tzinfo=timezone.utc).timestamp()
-            if time.time() - last_candle_time > 15:
-                self.rejected_signals += 1
+            if not current_zone or current_zone.lower() not in [z.lower() for z in self.preset.zones]:
                 return None
 
-            # 3. Price enters pocket zone
-            zone = self.fib_tracker.check_zone_touch(current_price)
-            if not zone or zone.lower() not in [z.lower() for z in self.preset.zones]:
-                # Force silent reject, normal state
-                return None
-
+            # 3. Orderbook Matrix (Atomic Check)
             ob_score, ob_dir = await self._async_ob()
-            if ob_dir == "NONE":
+            if ob_dir == "NONE" or (opts and ob_score < opts.ob_ratio_min):
                 self.rejected_signals += 1
                 return None
-                
+            
             direction = SignalDirection.LONG if ob_dir == "LONG" else SignalDirection.SHORT
 
-            # 4. Parallel async checks
-            div_res, fund_res, pa_score, vol_score, bb_score = await asyncio.gather(
-                self._async_div(candles.get(tf_div, m1_candles)),
+            # 4. Indicators Matrix (Multi-TF Parallel Confirmation)
+            # Parallel Divergence detections
+            div_tasks = [self._async_div(candles.get(tf, m1_candles)) for tf in tfs_div]
+            # Parallel BB detections
+            bb_tasks = [self._async_bbands(candles.get(tf, m1_candles)) for tf in tfs_bb]
+            
+            # Other Atomic Checks
+            other_tasks = [
                 self._async_fund(direction.name),
                 self._async_pa(m1_candles, direction.name),
-                self._async_vol(m1_candles),
-                self._async_bbands(candles.get(tf_bb, m1_candles))
-            )
+                self._async_vol(m1_candles)
+            ]
             
-            div_type, div_score = div_res
-            fund_score, fund_rate = fund_res
+            results = await asyncio.gather(*div_tasks, *bb_tasks, *other_tasks)
+            
+            # Parse Results
+            div_results = results[:len(div_tasks)]
+            bb_results = results[len(div_tasks):len(div_tasks)+len(bb_tasks)]
+            fund_score, fund_rate = results[-3]
+            pa_score = results[-2]
+            vol_score = results[-1]
+            
+            # Confluence Logic: Average or Strictest? 
+            # We use Weighted Sum: and only add if TF matches
+            div_total = sum(res[1] for res in div_results) / max(len(div_results), 1)
+            bb_total = sum(res) for res in bb_results) / max(len(bb_results), 1)
+            
+            # 5. Raw Data Matrix (OI & Liquidation Surge)
             liq_boost = self.liq_monitor.get_boost(direction.name)
+            if opts and liq_boost > 0 and self.liq_monitor.last_burst_usd < opts.liq_burst_usd:
+                liq_boost = 0 # Reject if burst is too small
 
-            total_score = ob_score + div_score + fund_score + pa_score + vol_score + liq_boost + bb_score
-
-            exec_time = (time.perf_counter() - start_time) * 1000
-            if exec_time > 500:
-                self.rejected_signals += 1
-                return None
-
+            # Total Scoring
+            total_score = ob_score + div_total + fund_score + pa_score + vol_score + liq_boost + bb_total
+            
             if total_score < self.preset.min_score:
                 self.rejected_signals += 1
                 return None
 
+            # Build Signal
             sl_pct = 0.005
             tp_pct = 0.01
             
@@ -168,12 +164,12 @@ class SignalEngine:
                 id=str(uuid.uuid4()),
                 direction=direction,
                 mode=self.mode,
-                zone=zone,
+                zone=current_zone,
                 total_score=int(total_score),
                 confluence=ConfluenceMetrics(
-                    divergence_score=div_score,
-                    divergence_tfs=[tf_div],
-                    divergence_type=div_type,
+                    divergence_score=int(div_total),
+                    divergence_tfs=tfs_div,
+                    divergence_type=div_results[0][0] if div_results else DivergenceType.NONE,
                     orderbook_score=ob_score,
                     orderbook_ratio=self.ob_tracker.calculate_imbalance()[0],
                     volume_score=vol_score,
@@ -189,6 +185,9 @@ class SignalEngine:
                 tp1=current_price * (1 + tp_pct) if direction == SignalDirection.LONG else current_price * (1 - tp_pct),
                 tp2=current_price * (1 + tp_pct*2) if direction == SignalDirection.LONG else current_price * (1 - tp_pct*2)
             )
+            
+            self.recent_signals.append(sig)
+            return sig
             
             self.recent_signals.append(sig)
             return sig

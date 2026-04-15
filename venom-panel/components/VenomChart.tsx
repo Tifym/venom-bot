@@ -10,6 +10,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   const chartRef = useRef<any>(null);
   const priceLinesRef = useRef<any[]>([]);
   const bbRef = useRef<any[]>([]); // [upper, mid, lower]
+  const drawingSeriesRef = useRef<any[]>([]); // For trendlines
 
   const [toggles, setToggles] = useState({
     bb: true,
@@ -19,10 +20,33 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   });
   
   const [activeTF, setActiveTF] = useState("1m");
+  const [drawMode, setDrawMode] = useState<string | null>(null);
+  const [drawings, setDrawings] = useState<any[]>([]);
 
   const lastTimeRef = useRef<number>(0);
   const candleHistory = useRef<any[]>([]);
-  const fibLinesRef = useRef<any[]>([]);
+  const fibZonesRef = useRef<any[]>([]); // Array of price lines/boxes
+
+  const fetchDrawings = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/drawings?timeframe=${activeTF}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDrawings(data);
+      }
+    } catch (e) { console.error("Failed to fetch drawings", e); }
+  }, [activeTF]);
+
+  const saveDrawing = async (drawing: any) => {
+    try {
+      await fetch('/api/drawings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...drawing, timeframe: activeTF })
+      });
+      fetchDrawings();
+    } catch (e) { console.error("Failed to save drawing", e); }
+  };
 
   // Helper to fetch history
   const fetchHistory = useCallback(async (tf: string) => {
@@ -46,14 +70,9 @@ export function VenomChart({ liveData }: { liveData?: any }) {
             color: h.close >= h.open ? '#00FF4140' : '#FF004040'
           })));
           updateBB(history);
-        } else {
-          seriesRef.current.setData([]);
-          volumeRef.current.setData([]);
         }
       }
-    } catch (e) {
-      console.error("Failed to fetch chart history:", e);
-    }
+    } catch (e) { console.error("Failed to fetch chart history:", e); }
   }, []);
 
   useEffect(() => {
@@ -96,9 +115,9 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     });
 
     // Bollinger Band Lines
-    const bbUpper = chart.addLineSeries({ color: 'rgba(0, 255, 65, 0.3)', lineWidth: 1, lineStyle: 0, title: 'BB Upper' });
-    const bbMid = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.2)', lineWidth: 1, lineStyle: 2, title: 'BB Mid' });
-    const bbLower = chart.addLineSeries({ color: 'rgba(255, 0, 64, 0.3)', lineWidth: 1, lineStyle: 0, title: 'BB Lower' });
+    const bbUpper = chart.addLineSeries({ color: 'rgba(0, 255, 65, 0.3)', lineWidth: 1, lineStyle: 0 });
+    const bbMid = chart.addLineSeries({ color: 'rgba(255, 255, 255, 0.2)', lineWidth: 1, lineStyle: 2 });
+    const bbLower = chart.addLineSeries({ color: 'rgba(255, 0, 64, 0.3)', lineWidth: 1, lineStyle: 0 });
 
     seriesRef.current = candlestickSeries;
     volumeRef.current = volumeSeries;
@@ -106,22 +125,42 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     bbRef.current = [bbUpper, bbMid, bbLower];
 
     fetchHistory(activeTF);
+    fetchDrawings();
 
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
     };
+
+    // Drawing Logic
+    chart.subscribeClick((param) => {
+        if (!param.point || !drawMode) return;
+        const price = seriesRef.current.coordinateToPrice(param.point.y);
+        
+        if (drawMode === 'horizontal') {
+            const id = `h-${Date.now()}`;
+            saveDrawing({ id, type: 'horizontal', data: { price } });
+            setDrawMode(null);
+        }
+    });
 
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [fetchHistory]);
+  }, [fetchHistory, fetchDrawings]);
+
+  // Sync Drawings to Chart
+  useEffect(() => {
+    if (!seriesRef.current) return;
+    // (Actual drawing synchronization logic would clear old lines and add new LineSeries/PriceLines)
+  }, [drawings]);
 
   // Handle Timeframe Switch
   const handleTFSwitch = (tf: string) => {
     setActiveTF(tf);
     fetchHistory(tf);
+    fetchDrawings();
   };
 
   const calculateBB = (data: any[], period = 20, multiplier = 2) => {
@@ -173,12 +212,12 @@ export function VenomChart({ liveData }: { liveData?: any }) {
 
     try {
       // 1. Raw Tech Data (Fib & Div)
-      if (liveData.type === 'raw_tech' && toggles.fib) {
-          // Clear old fib lines
-          fibLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
-          fibLinesRef.current = [];
+      if (liveData.type === 'raw_tech') {
+          // Clear old visuals
+          fibZonesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
+          fibZonesRef.current = [];
           
-          if (liveData.fib_pockets) {
+          if (liveData.fib_pockets && toggles.fib) {
               Object.entries(liveData.fib_pockets).forEach(([zone, range]: any) => {
                   if (!range || range.length < 2) return;
                   const colors: any = { omega: '#00FF41', alpha: '#FF0040', beta: '#f59e0b' };
@@ -191,9 +230,9 @@ export function VenomChart({ liveData }: { liveData?: any }) {
                       lineWidth: 1,
                       lineStyle: 1,
                       axisLabelVisible: true,
-                      title: `${zone.toUpperCase()} ${i === 0 ? 'ENTRY' : 'SL'}`,
+                      title: `${zone.toUpperCase()} (${liveData.tf_source || activeTF})`,
                     });
-                    fibLinesRef.current.push(pl);
+                    fibZonesRef.current.push(pl);
                   });
               });
           }
@@ -201,16 +240,17 @@ export function VenomChart({ liveData }: { liveData?: any }) {
           if (liveData.divergence?.score > 0 && toggles.div) {
               const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
               const isBull = liveData.divergence.type.includes('BULL');
+              const currentMarkers = seriesRef.current.getMarkers() || [];
               seriesRef.current.setMarkers([
-                ...(seriesRef.current.getMarkers() || []),
+                ...currentMarkers,
                 {
                   time,
                   position: isBull ? 'belowBar' : 'aboveBar',
                   color: isBull ? '#00FF41' : '#FF0040',
                   shape: 'circle',
-                  text: `DIV ${liveData.divergence.score}`,
+                  text: `DIV [${liveData.tf_source || activeTF}]`,
                 }
-              ].slice(-50));
+              ].slice(-100));
           }
       }
 
@@ -301,39 +341,65 @@ export function VenomChart({ liveData }: { liveData?: any }) {
 
   return (
     <div className="w-full h-full relative group" id="chart-container">
-      {/* Floating HUD Toggle Board */}
+      {/* Drawing Toolbar (Left) */}
+      <div className="absolute top-1/2 -translate-y-1/2 left-4 z-10 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button 
+            onClick={() => setDrawMode(drawMode === 'horizontal' ? null : 'horizontal')}
+            className={`p-2 rounded bg-black/80 border ${drawMode === 'horizontal' ? 'border-toxic text-toxic' : 'border-white/10 text-white/40'} hover:border-toxic/50`}
+            title="Horizontal Line"
+        >
+            <Layers size={16} />
+        </button>
+        <button 
+            onClick={() => setDrawings([])} // Clear local for now, add delete logic later
+            className={`p-2 rounded bg-black/80 border border-white/10 text-white/40 hover:border-red-500/50`}
+            title="Clear Chart"
+        >
+            <Zap size={16} className="rotate-45" />
+        </button>
+      </div>
+
+      {/* Indicator HUD (Top Left) */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
         <button 
             onClick={() => setToggles(prev => ({ ...prev, bb: !prev.bb }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.bb ? 'text-toxic' : 'text-white/40'}`}
         >
-            <Zap size={12} /> BOLLINGER {toggles.bb ? 'ON' : 'OFF'}
-        </button>
-        <button 
-            onClick={() => setToggles(prev => ({ ...prev, volume: !prev.volume }))}
-            className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.volume ? 'text-toxic' : 'text-white/40'}`}
-        >
-            <BarChart2 size={12} /> VOLUME {toggles.volume ? 'ON' : 'OFF'}
+            <Activity size={12} /> BBANDS {toggles.bb ? 'ON' : 'OFF'}
         </button>
         <button 
             onClick={() => setToggles(prev => ({ ...prev, fib: !prev.fib }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.fib ? 'text-toxic' : 'text-white/40'}`}
         >
-            <Layers size={12} /> POCKETS {toggles.fib ? 'ON' : 'OFF'}
+            <Layers size={12} /> FIB {toggles.fib ? 'ON' : 'OFF'}
         </button>
         <button 
             onClick={() => setToggles(prev => ({ ...prev, div: !prev.div }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.div ? 'text-toxic' : 'text-white/40'}`}
         >
-            <Zap size={12} /> DIVERGENCE {toggles.div ? 'ON' : 'OFF'}
+            <Zap size={12} /> DIVS {toggles.div ? 'ON' : 'OFF'}
         </button>
       </div>
 
       <div ref={chartContainerRef} className="absolute inset-0" />
       
-      {/* HUD Info */}
+      {/* Advanced Timeframe Switcher */}
+      <div className="absolute bottom-4 left-4 z-10 flex gap-1 bg-black/60 p-1 rounded border border-white/10 opacity-60 group-hover:opacity-100 transition-opacity flex-wrap max-w-[300px]">
+        {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+          <button
+            key={tf}
+            onClick={() => handleTFSwitch(tf)}
+            className={`px-2 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all ${
+              activeTF === tf ? "bg-toxic text-black" : "text-white/50 hover:bg-white/5"
+            }`}
+          >
+            {tf}
+          </button>
+        ))}
+      </div>
+
       <div className="absolute top-4 right-4 z-10 text-[10px] font-mono text-toxic bg-toxic/5 p-2 rounded border border-toxic/20 pointer-events-none">
-        BTCUSDT 1M │ BINANCE FLOW
+        BTCUSDT {activeTF.toUpperCase()} │ ATOMIC SYMBOL
       </div>
     </div>
   );
