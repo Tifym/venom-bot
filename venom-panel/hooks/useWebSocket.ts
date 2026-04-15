@@ -11,9 +11,13 @@ export function useWebSocket() {
     if (typeof window === 'undefined') return;
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
-    // Use the same host/protocol as the page - works locally AND through Cloudflare
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    // Prioritize configured WS URL, fallback to relative /ws (handled by next.config.js rewrites)
+    let wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    
+    if (!wsUrl) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    }
 
     console.log('Connecting to Venom WebSocket:', wsUrl);
     const ws = new WebSocket(wsUrl);

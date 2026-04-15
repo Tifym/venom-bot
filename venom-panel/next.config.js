@@ -1,5 +1,18 @@
 /** @type {import('next').NextConfig} */
-// Nginx handles all routing — no rewrites needed in Next.js
-const nextConfig = {};
+const nextConfig = {
+  async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || 'http://backend:8000';
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: '/ws',
+        destination: `${backendUrl}/ws`,
+      },
+    ];
+  },
+};
 
 module.exports = nextConfig;
