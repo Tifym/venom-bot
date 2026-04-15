@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: "Strike When the Market Breathes",
 };
 
+import { WebSocketProvider } from "@/context/WebSocketContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,7 +24,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans text-white antialiased">
-        {children}
+        <WebSocketProvider>
+          {children}
+        </WebSocketProvider>
       </body>
     </html>
   );

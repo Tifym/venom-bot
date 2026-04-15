@@ -43,19 +43,23 @@ async def cmd_status(message: Message):
         
     health = get_health_callback()
     
-    # health should be a dict: { 'binance_latency': 10, 'binance_connected': True ... }
     b_stat = "🟢" if health.get('binance_connected') else "🔴"
     by_stat = "🟢" if health.get('bybit_connected') else "🔴"
     m_stat = "🟢" if health.get('mempool_connected') else "🔴"
     
+    # Global status summary
+    sys_stat = "✅ ACTIVE" if health.get('binance_connected') and health.get('bybit_connected') else "⚠️ PARTIAL"
+    if not health.get('binance_connected') and not health.get('bybit_connected'):
+        sys_stat = "❌ OFFLINE"
+
     await message.reply(
-        f"{b_stat} <b>SYSTEM STATUS</b>\n\n"
-        f"Binance WS: {health.get('binance_latency', 0)}ms\n"
-        f"Bybit WS: {health.get('bybit_latency', 0)}ms\n"
-        f"Mempool: {m_stat}\n"
-        f"Last signal: {health.get('last_signal_ago', 'N/A')}s ago\n"
-        f"Mode: {health.get('mode', 'HUNTER')}\n"
-        f"Signals 24h: {health.get('signals_24h', 0)}"
+        f"🛡️ <b>VENOM SYSTEM STATUS: {sys_stat}</b>\n\n"
+        f"{b_stat} <b>Binance WS:</b> {health.get('binance_latency', 0)}ms\n"
+        f"{by_stat} <b>Bybit WS:</b> {health.get('bybit_latency', 0)}ms\n"
+        f"{m_stat} <b>Mempool:</b> {'SYNCED' if m_stat == '🟢' else 'STALE'}\n\n"
+        f"⏱️ <b>Last Strike:</b> {health.get('last_signal_ago', 'N/A')}s ago\n"
+        f"⚙️ <b>Current Mode:</b> {health.get('mode', 'HUNTER').upper()}\n"
+        f"📊 <b>24H Hits:</b> {health.get('signals_24h', 0)}"
     )
 
 class TelegramBot:

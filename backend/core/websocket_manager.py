@@ -23,6 +23,8 @@ class WebSocketConnection:
         self.is_circuit_open = False
         
         self.callbacks = []
+        self.ping_msg = None
+        self.ping_interval = 20
 
     def set_state(self, new_state: str):
         if self.state != new_state:
@@ -40,9 +42,9 @@ class WebSocketConnection:
             await asyncio.sleep(5)
             if self.state in ["CONNECTED", "HEALTHY", "STALE"]:
                 age = time.time() - self.last_msg_time
-                if age > 5:
+                if age > 30:
                     self.set_state("STALE")
-                elif age <= 3:
+                elif age <= 10:
                     self.set_state("HEALTHY")
 
     async def connect(self):
@@ -68,14 +70,27 @@ class WebSocketConnection:
                     self.failures = 0
                     self.reconnect_delay = 1
                     
-                    async for message in ws:
-                        self.last_msg_time = time.time()
-                        if self.state != "HEALTHY":
-                            self.set_state("HEALTHY")
-                            
-                        data = json.loads(message)
-                        for cb in self.callbacks:
-                            asyncio.create_task(cb(self.name, data))
+                    # Optional Heartbeat Task
+                    ping_task = None
+                    if self.ping_msg:
+                        ping_task = asyncio.create_task(self._ping_loop())
+
+                    try:
+                        async for message in ws:
+                            self.last_msg_time = time.time()
+                            if self.state != "HEALTHY":
+                                self.set_state("HEALTHY")
+                                
+                            try:
+                                data = json.loads(message)
+                                for cb in self.callbacks:
+                                    asyncio.create_task(cb(self.name, data))
+                            except json.JSONDecodeError:
+                                # Some servers send raw strings or heartbeats
+                                pass
+                    finally:
+                        if ping_task:
+                            ping_task.cancel()
                             
             except Exception as e:
                 self.set_state("RECONNECTING")
@@ -85,14 +100,26 @@ class WebSocketConnection:
                 await asyncio.sleep(self.reconnect_delay)
                 self.reconnect_delay = min(self.reconnect_delay * 2, self.max_delay)
 
+    async def _ping_loop(self):
+        """Keep subscription-based connections alive with app-level pings."""
+        while self.ws and not self.ws.closed:
+            await asyncio.sleep(self.ping_interval)
+            try:
+                if self.ping_msg:
+                    await self.ws.send(json.dumps(self.ping_msg))
+            except:
+                break
+
 
 class MultiWebSocketManager:
     def __init__(self):
         self.connections: Dict[str, WebSocketConnection] = {}
         self.global_state = "OK"
 
-    def add_source(self, name: str, url: str, subscription_msg: Optional[dict] = None):
-        self.connections[name] = WebSocketConnection(name, url, subscription_msg)
+    def add_source(self, name: str, url: str, subscription_msg: Optional[dict] = None, ping_msg: Optional[dict] = None):
+        conn = WebSocketConnection(name, url, subscription_msg)
+        conn.ping_msg = ping_msg
+        self.connections[name] = conn
 
     def add_callback(self, name: str, cb: Callable):
         if name in self.connections:

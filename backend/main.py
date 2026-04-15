@@ -37,11 +37,14 @@ BYBIT_WS = 'wss://stream.bybit.com/v5/public/linear?args=["orderbook.1.BTCUSDT",
 MEMPOOL_WS = "wss://mempool.space/api/v1/ws"
 
 ws_manager.add_source("binance", BINANCE_WS)
-ws_manager.add_source("bybit", BYBIT_WS, {
-    "op": "subscribe", 
-    "args": ["tickers.BTCUSDT", "liquidation.BTCUSDT", "orderbook.1.BTCUSDT"]
-})
-ws_manager.add_source("mempool", MEMPOOL_WS, {"action": "sub-mempool-bin"})
+ws_manager.add_source("bybit", BYBIT_WS, 
+    subscription_msg={
+        "op": "subscribe", 
+        "args": ["tickers.BTCUSDT", "liquidation.BTCUSDT", "orderbook.1.BTCUSDT"]
+    },
+    ping_msg={"op": "ping"}
+)
+ws_manager.add_source("mempool", MEMPOOL_WS, subscription_msg={"action": "init"})
 
 async def _process_stream(source: str, data: Dict[str, Any]):
     try:
