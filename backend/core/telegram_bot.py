@@ -1,6 +1,7 @@
 import structlog
 import asyncio
 from aiogram import Bot, Dispatcher, Router
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -11,7 +12,7 @@ from ..models.signal import VenomSignal
 
 logger = structlog.get_logger()
 router = Router()
-bot = Bot(token=settings.TELEGRAM_BOT_TOKEN, parse_mode=ParseMode.HTML)
+bot = Bot(token=settings.TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 dp.include_router(router)
 
@@ -137,7 +138,7 @@ class TelegramBot:
 <a href="{panel_url}">Open Venom Panel</a>"""
         
         try:
-            await bot.send_message(chat_id=self.chat_id, text=text, disable_web_page_preview=True)
+            await bot.send_message(chat_id=self.chat_id, text=text)
         except Exception as e:
             logger.error("telegram_send_signal_error", error=str(e))
 
