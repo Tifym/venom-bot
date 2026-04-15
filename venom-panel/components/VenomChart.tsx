@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
-import { Settings, BarChart2, Zap, Layers } from "lucide-react";
+import { Settings, BarChart2, Zap, Layers, Activity } from "lucide-react";
 
 export function VenomChart({ liveData }: { liveData?: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
