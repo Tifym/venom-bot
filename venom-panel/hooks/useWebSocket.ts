@@ -7,7 +7,9 @@ export function useWebSocket() {
   const socketRef = useRef<WebSocket | null>(null);
 
   const connect = useCallback(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+    if (typeof window === 'undefined') return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.host}/ws`;
     
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -24,7 +26,6 @@ export function useWebSocket() {
         const message = JSON.parse(event.data);
         setData(message);
         
-        // Simple latency check if timestamp is present
         if (message.timestamp) {
           setLatency(Date.now() - message.timestamp);
         }
@@ -50,7 +51,10 @@ export function useWebSocket() {
   useEffect(() => {
     connect();
     return () => {
-      socketRef.current?.close();
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
     };
   }, [connect]);
 

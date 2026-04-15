@@ -4,7 +4,9 @@ export function useSystemStatus() {
   const [status, setStatus] = useState<any>(null);
 
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? `ws://${window.location.hostname}:8000/ws` : '');
+    if (typeof window === 'undefined') return;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.host}/ws`;
     if (!wsUrl) return;
     
     const ws = new WebSocket(wsUrl);
