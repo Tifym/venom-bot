@@ -74,25 +74,30 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   }, []);
 
   useEffect(() => {
-    if (liveData && seriesRef.current && liveData.stream?.includes('kline')) {
-      const k = liveData.data.k;
-      // Also update fib zone if you passed it down...
-      
+    if (!liveData || !seriesRef.current) return;
+    if (!liveData.stream?.includes('kline')) return;
+
+    const k = liveData.data?.k;
+    if (!k) return;
+
+    // lightweight-charts requires time as integer Unix seconds
+    const time = Math.floor(Number(k.t) / 1000);
+    if (!time || isNaN(time)) return;
+
+    try {
       seriesRef.current.update({
-        time: k.t / 1000,
+        time,
         open: parseFloat(k.o),
         high: parseFloat(k.h),
         low: parseFloat(k.l),
         close: parseFloat(k.c),
       });
-      
-      // Keep fib baseline trailing along with same timestamp, dummy value
+
       if (fibSeriesRef.current) {
-        fibSeriesRef.current.update({
-           time: k.t / 1000,
-           value: 64500
-        });
+        fibSeriesRef.current.update({ time, value: parseFloat(k.c) });
       }
+    } catch (e) {
+      // Silently ignore chart update errors (e.g. out-of-order ticks)
     }
   }, [liveData]);
 
