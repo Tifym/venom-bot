@@ -11,15 +11,14 @@ from .config.settings import settings
 from .database.postgres_client import postgres_client
 from .database.redis_client import redis_client
 from .core.websocket_manager import MultiWebSocketManager
-from .core.signal_engine import SignalEngine
 from .core.telegram_bot import telegram_bot_instance
+from .core.state import signal_engine
 import backend.core.telegram_bot as tb_module
 from .api import routes, websocket as ws_router
 
 logger = structlog.get_logger()
 
 # Instances
-signal_engine = SignalEngine(mode="HUNTER")
 ws_manager = MultiWebSocketManager()
 
 # Timeframe buffers

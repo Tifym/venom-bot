@@ -1,12 +1,10 @@
 "use client";
-import { useState } from "react";
+import { ConfigState } from "./ZoneToggles";
 
-export function ThresholdControls() {
-  const [minScore, setMinScore] = useState(75);
-  const [dirCooldown, setDirCooldown] = useState(5);
-  const [zoneCooldown, setZoneCooldown] = useState(10);
-  const [dailyCap, setDailyCap] = useState(25);
-  const [atrFilter, setAtrFilter] = useState(0.2);
+export function ThresholdControls({ config, onChange }: { config: ConfigState, onChange: (c: ConfigState) => void }) {
+  const updatePreset = (k: keyof ConfigState['preset'], val: any) => {
+    onChange({ ...config, preset: { ...config.preset, [k]: val } });
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -15,37 +13,30 @@ export function ThresholdControls() {
       <div className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <div className="flex justify-between text-[11px] font-mono text-white/70">
-            <span>Min Score</span><span>{minScore}</span>
+            <span>Min Score</span><span>{config.preset.min_score}</span>
           </div>
-          <input type="range" min="40" max="95" value={minScore} onChange={e => setMinScore(parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
+          <input type="range" min="40" max="95" value={config.preset.min_score} onChange={e => updatePreset('min_score', parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
         </label>
 
         <label className="flex flex-col gap-1">
           <div className="flex justify-between text-[11px] font-mono text-white/70">
-            <span>Dir Cooldown</span><span>{dirCooldown}m</span>
+            <span>Dir Cooldown</span><span>{config.preset.cooldown_dir}m</span>
           </div>
-          <input type="range" min="0" max="30" value={dirCooldown} onChange={e => setDirCooldown(parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
+          <input type="range" min="0" max="30" value={config.preset.cooldown_dir} onChange={e => updatePreset('cooldown_dir', parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
         </label>
 
         <label className="flex flex-col gap-1">
           <div className="flex justify-between text-[11px] font-mono text-white/70">
-            <span>Zone Cooldown</span><span>{zoneCooldown}m</span>
+            <span>Daily Cap</span><span>{config.preset.daily_cap === 200 ? 'Infinite' : config.preset.daily_cap}</span>
           </div>
-          <input type="range" min="0" max="60" value={zoneCooldown} onChange={e => setZoneCooldown(parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
+          <input type="range" min="10" max="200" step="5" value={config.preset.daily_cap} onChange={e => updatePreset('daily_cap', parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
         </label>
 
         <label className="flex flex-col gap-1">
           <div className="flex justify-between text-[11px] font-mono text-white/70">
-            <span>Daily Cap</span><span>{dailyCap === 200 ? 'Infinite' : dailyCap}</span>
+            <span>ATR Filter</span><span>{config.preset.atr_filter}%</span>
           </div>
-          <input type="range" min="10" max="200" step="5" value={dailyCap} onChange={e => setDailyCap(parseInt(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <div className="flex justify-between text-[11px] font-mono text-white/70">
-            <span>ATR Filter</span><span>{atrFilter}%</span>
-          </div>
-          <input type="range" min="0.05" max="1" step="0.05" value={atrFilter} onChange={e => setAtrFilter(parseFloat(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
+          <input type="range" min="0.05" max="1" step="0.05" value={config.preset.atr_filter} onChange={e => updatePreset('atr_filter', parseFloat(e.target.value))} className="w-full h-1 bg-white/20 rounded-lg appearance-none" style={{ accentColor: '#00FFFF'}} />
         </label>
       </div>
     </div>

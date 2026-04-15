@@ -2,9 +2,21 @@
 
 import { Activity, Settings, BarChart2 } from "lucide-react";
 import { useSystemStatus } from "../hooks/useSystemStatus";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { useState, useEffect } from "react";
 
 export function Header() {
   const status = useSystemStatus();
+  const { data: liveData } = useWebSocket();
+  const [price, setPrice] = useState<number>(0);
+
+  useEffect(() => {
+    if (liveData?.stream?.includes('kline')) {
+      setPrice(parseFloat(liveData.data.k.c));
+    } else if (liveData?.type === 'ticker') {
+      setPrice(parseFloat(liveData.data.lastPrice));
+    }
+  }, [liveData]);
 
   return (
     <header className="h-16 glass-panel border-x-0 border-t-0 rounded-none flex items-center justify-between px-6 z-50 sticky top-0 bg-black/50 backdrop-blur-md">
@@ -17,7 +29,7 @@ export function Header() {
         <div className="flex flex-col items-center">
           <span className="text-[10px] text-white/50 uppercase tracking-widest font-mono">BTC/USDT</span>
           <span className="font-mono text-toxic font-medium tracking-tight">
-            $64,420.00
+            ${price > 0 ? price.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "LOADING"}
           </span>
         </div>
         <div className="w-[1px] h-8 bg-white/10" />
