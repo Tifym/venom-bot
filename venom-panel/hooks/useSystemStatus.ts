@@ -4,7 +4,9 @@ export function useSystemStatus() {
   const [status, setStatus] = useState<any>(null);
 
   useEffect(() => {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:8000/ws`;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? `ws://${window.location.host}/ws` : '');
+    if (!wsUrl) return;
+    
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {

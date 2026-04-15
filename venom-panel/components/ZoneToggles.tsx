@@ -10,6 +10,14 @@ export interface ConfigState {
     cooldown_dir: number;
     daily_cap: number;
     atr_filter: number;
+    custom_options?: {
+      name: string;
+      bbands_lower: number;
+      bbands_upper: number;
+      bbands_enabled: boolean;
+      timeframes: string[];
+      custom_fibs: any;
+    };
   };
 }
 

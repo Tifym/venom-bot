@@ -35,6 +35,16 @@ async def update_config(payload: Dict[str, Any]):
         if "cooldown_dir" in preset_data: signal_engine.preset.cooldown_dir = preset_data["cooldown_dir"]
         if "daily_cap" in preset_data: signal_engine.preset.daily_cap = preset_data["daily_cap"]
         if "atr_filter" in preset_data: signal_engine.preset.atr_filter = preset_data["atr_filter"]
+        
+        if "custom_options" in preset_data and signal_engine.preset.custom_options is not None:
+            c_opts = preset_data["custom_options"]
+            if "name" in c_opts: signal_engine.preset.custom_options.name = c_opts["name"]
+            if "bbands_enabled" in c_opts: signal_engine.preset.custom_options.bbands_enabled = c_opts["bbands_enabled"]
+            if "bbands_lower" in c_opts: signal_engine.preset.custom_options.bbands_lower = float(c_opts["bbands_lower"])
+            if "bbands_upper" in c_opts: signal_engine.preset.custom_options.bbands_upper = float(c_opts["bbands_upper"])
+            if "timeframes" in c_opts: signal_engine.preset.custom_options.timeframes = c_opts["timeframes"]
+            if "custom_fibs" in c_opts: signal_engine.preset.custom_options.custom_fibs = c_opts["custom_fibs"]
+
 
     return {"status": "success", "new_config": get_config()}
 

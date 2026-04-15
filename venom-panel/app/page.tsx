@@ -8,7 +8,7 @@ import { VenomFeed } from "@/components/VenomFeed";
 import { VenomStats } from "@/components/VenomStats";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useState, useEffect } from "react";
-import { useWebSocket } from "@/hooks/useWebSocket"; // Assuming existing hook provides live signals
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { useSignals } from "@/hooks/useSignals";
 
 const VenomChart = dynamic(() => import("@/components/VenomChart"), { ssr: false });
@@ -33,31 +33,37 @@ export default function VenomPanel() {
   }, [liveData]);
 
   return (
-    <div className="venom-container">
+    <div className="venom-container overflow-y-auto">
       <Header />
       
       {status === 'DATA_STARVED' && (
-        <div className="col-span-full text-center bg-alert-red/20 text-alert-red py-2 font-mono text-sm border-y border-alert-red/30">
+        <div className="text-center bg-alert-red/20 text-alert-red py-2 font-mono text-sm border-y border-alert-red/30 w-full mb-4">
           LIVE DATA UNAVAILABLE — SIGNALS PAUSED
         </div>
       )}
 
       <main className="venom-main">
-        <section className="chart-section glass-panel flex flex-col p-4 w-full h-full">
-          <VenomChart liveData={liveData} />
-        </section>
+        {/* Left Stack: Chart & ControlDeck */}
+        <div className="left-stack">
+          <section className="chart-section glass-panel flex flex-col p-4 w-full h-[600px]">
+            <VenomChart liveData={liveData} />
+          </section>
+          
+          <section className="glass-panel w-full">
+            <ControlDeck />
+          </section>
+        </div>
         
-        <section className="controls-section glass-panel flex flex-col">
-          <ControlDeck />
-        </section>
-
-        <section className="stats-section glass-panel flex flex-col p-4">
-          <VenomStats />
-        </section>
-        
-        <section className="feed-section glass-panel flex flex-col">
-          <VenomFeed signals={signals} />
-        </section>
+        {/* Right Stack: Stats & Signal Feed */}
+        <div className="right-stack">
+          <section className="glass-panel p-4">
+            <VenomStats />
+          </section>
+          
+          <section className="glass-panel flex-1 min-h-[400px] flex flex-col">
+            <VenomFeed signals={signals} />
+          </section>
+        </div>
       </main>
       
       <FooterStatus />

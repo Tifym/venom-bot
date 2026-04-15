@@ -4,21 +4,20 @@ from ..models.market_data import Candle
 from ..models.enums import VenomZone
 
 class FibonacciPocket:
-    FIB_LEVELS = {
-        VenomZone.ALPHA: (0.618, 0.650),
-        VenomZone.BETA: (0.500, 0.618),
-        VenomZone.GAMMA: (0.382, 0.500),
-        VenomZone.DELTA: (0.786, 0.850),
-        VenomZone.OMEGA: (0.850, 0.886)
+    DEFAULT_FIB_LEVELS = {
+        "alpha": (0.618, 0.650),
+        "beta": (0.500, 0.618),
+        "gamma": (0.382, 0.500),
+        "delta": (0.786, 0.850),
+        "omega": (0.850, 0.886)
     }
 
     def __init__(self, deviation: float = 0.008):
-        self.deviation = deviation # 0.8% deviation
+        self.deviation = deviation
         self.swings: List[Tuple[float, float, str]] = []
-        self.pockets: Dict[VenomZone, Tuple[float, float]] = {}
+        self.pockets: Dict[str, Tuple[float, float]] = {}
 
     def calculate_zig_zag(self, candles: List[Candle]) -> List[Tuple[float, float, str]]:
-        # Need lookback of 50 implicitly handled by candles list passed here
         if not candles:
             return []
             
@@ -46,7 +45,7 @@ class FibonacciPocket:
         self.swings = swings[-3:] # Keep recent 3 swings
         return self.swings
 
-    def calculate_pockets(self, swings: List[Tuple[float, float, str]]) -> Dict[VenomZone, Tuple[float, float]]:
+    def calculate_pockets(self, swings: List[Tuple[float, float, str]], custom_levels: Optional[Dict[str, List[float]]] = None) -> Dict[str, Tuple[float, float]]:
         pockets = {}
         if len(swings) < 2:
             return pockets
@@ -56,8 +55,15 @@ class FibonacciPocket:
 
         swing_range = abs(last_swing[0] - prev_swing[0])
         is_uptrend = last_swing[2] == 'HIGH'
+        
+        active_levels = self.DEFAULT_FIB_LEVELS.copy()
+        if custom_levels:
+            for k, v in custom_levels.items():
+                if len(v) == 2:
+                    active_levels[k] = (v[0], v[1])
 
-        for zone, (lower_fib, upper_fib) in self.FIB_LEVELS.items():
+        for zone, limits in active_levels.items():
+            lower_fib, upper_fib = limits
             if is_uptrend:
                 p_high = last_swing[0] - (swing_range * lower_fib)
                 p_low = last_swing[0] - (swing_range * upper_fib)
@@ -70,7 +76,7 @@ class FibonacciPocket:
         self.pockets = pockets
         return pockets
 
-    def check_zone_touch(self, current_price: float) -> Optional[VenomZone]:
+    def check_zone_touch(self, current_price: float) -> Optional[str]:
         for zone, (low, high) in self.pockets.items():
             if low <= current_price <= high:
                 return zone

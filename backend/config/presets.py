@@ -1,72 +1,59 @@
-from pydantic import BaseModel, Field
-from typing import List
+from pydantic import BaseModel
+from typing import List, Dict, Optional
+
+class CustomOptions(BaseModel):
+    name: str = "BLASTER_V1"
+    bbands_lower: float = 2.0
+    bbands_upper: float = 2.0
+    bbands_enabled: bool = False
+    custom_fibs: Dict[str, List[float]] = {}
+    timeframes: List[str] = ["1m", "5m"]
 
 class PresetMode(BaseModel):
     min_score: int
     min_tfs: int
     zones: List[str]
-    cooldown_dir: int # minutes
-    cooldown_zone: int # minutes
-    daily_cap: int = 0
+    cooldown_dir: int
+    daily_cap: int = 200
     atr_filter: float = 0.0
-    partial_confluence: bool = False
-    funding_required: bool = False
+    custom_options: Optional[CustomOptions] = None
 
 PRESETS = {
     "SILENT": PresetMode(
         min_score=90,
         min_tfs=3,
-        zones=['alpha'],
-        cooldown_dir=10,
-        cooldown_zone=20,
-        daily_cap=10,
-        atr_filter=0.5,
-        partial_confluence=False,
-        funding_required=True
+        zones=["alpha", "omega"],
+        cooldown_dir=30,
+        atr_filter=0.5
     ),
     "HUNTER": PresetMode(
         min_score=75,
         min_tfs=2,
-        zones=['alpha', 'beta'],
-        cooldown_dir=5,
-        cooldown_zone=10,
-        daily_cap=25,
-        atr_filter=0.2,
-        partial_confluence=False,
-        funding_required=True
+        zones=["alpha", "beta", "gamma"],
+        cooldown_dir=10,
+        atr_filter=0.2
     ),
     "PREDATOR": PresetMode(
         min_score=60,
         min_tfs=1,
-        zones=['alpha', 'beta', 'gamma'],
-        cooldown_dir=3,
-        cooldown_zone=5,
-        daily_cap=50,
-        atr_filter=0.1,
-        partial_confluence=True,
-        funding_required=False
+        zones=["alpha", "beta", "gamma", "delta", "omega"],
+        cooldown_dir=5,
+        atr_filter=0.1
     ),
     "RAMPAGE": PresetMode(
-        min_score=45,
+        min_score=40,
         min_tfs=1,
-        zones=['alpha', 'beta', 'gamma', 'delta', 'omega'],
-        cooldown_dir=2,
-        cooldown_zone=3,
-        daily_cap=0, # Infinite
-        atr_filter=0.05,
-        partial_confluence=True,
-        funding_required=False
+        zones=["alpha", "beta", "gamma", "delta", "omega"],
+        cooldown_dir=0,
+        daily_cap=500,
+        atr_filter=0.05
     ),
     "CUSTOM": PresetMode(
-        min_score=75,
-        min_tfs=2,
-        zones=['alpha', 'beta'],
-        cooldown_dir=5,
-        cooldown_zone=10,
-        daily_cap=0,
-        atr_filter=0.1,
-        partial_confluence=False,
-        funding_required=False
+        min_score=50,
+        min_tfs=1,
+        zones=["alpha", "beta", "gamma", "delta", "omega"],
+        cooldown_dir=0,
+        custom_options=CustomOptions()
     )
 }
 

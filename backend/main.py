@@ -22,7 +22,7 @@ logger = structlog.get_logger()
 ws_manager = MultiWebSocketManager()
 
 # Timeframe buffers
-candle_buffer: Dict[str, list] = {"1m": [], "5m": [], "15m": []}
+candle_buffer: Dict[str, list] = {tf: [] for tf in ["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"]}
 
 async def on_liquidation_cascade(side: str, amount: float) -> None:
     await telegram_bot_instance.send_liquidation_alert(side, amount)
@@ -31,7 +31,7 @@ async def on_liquidation_cascade(side: str, amount: float) -> None:
 signal_engine.liq_monitor.callback = on_liquidation_cascade
 
 # Data Sources Definitions
-BINANCE_WS = "wss://fstream.binance.com/stream?streams=btcusdt@kline_1m/btcusdt@depth20@100ms/btcusdt@forceOrder/btcusdt@markPrice@1s"
+BINANCE_WS = "wss://fstream.binance.com/stream?streams=btcusdt@kline_1m/btcusdt@kline_3m/btcusdt@kline_5m/btcusdt@kline_15m/btcusdt@kline_30m/btcusdt@kline_1h/btcusdt@kline_4h/btcusdt@kline_1d/btcusdt@depth20@100ms/btcusdt@forceOrder/btcusdt@markPrice@1s"
 BYBIT_WS = 'wss://stream.bybit.com/v5/public/linear?args=["orderbook.1.BTCUSDT","tickers.BTCUSDT","liquidation.BTCUSDT"]'
 MEMPOOL_WS = "wss://mempool.space/api/v1/ws"
 
@@ -53,23 +53,25 @@ async def _process_stream(source: str, data: Dict[str, Any]):
                 })
 
                 if k.get("x"):
-                    from .models.market_data import Candle
-                    from datetime import datetime, timezone
-                    candle = Candle(
-                        open=float(k["o"]),
-                        high=float(k["h"]),
-                        low=float(k["l"]),
-                        close=float(k["c"]),
-                        volume=float(k["v"]),
-                        timestamp=datetime.fromtimestamp(k["T"]/1000, tz=timezone.utc),
-                        timeframe="1m"
-                    )
-                    candle_buffer["1m"].append(candle)
-                    if len(candle_buffer["1m"]) > 200:
-                        candle_buffer["1m"] = candle_buffer["1m"][-200:]
+                    tf_match = stream.split("_")[-1]
+                    if tf_match in candle_buffer:
+                        from .models.market_data import Candle
+                        from datetime import datetime, timezone
+                        candle = Candle(
+                            open=float(k["o"]),
+                            high=float(k["h"]),
+                            low=float(k["l"]),
+                            close=float(k["c"]),
+                            volume=float(k["v"]),
+                            timestamp=datetime.fromtimestamp(k["T"]/1000, tz=timezone.utc),
+                            timeframe=tf_match
+                        )
+                        candle_buffer[tf_match].append(candle)
+                        if len(candle_buffer[tf_match]) > 200:
+                            candle_buffer[tf_match] = candle_buffer[tf_match][-200:]
 
-                    # Evaluate signal
-                    if ws_manager.global_state != "DATA_STARVED":
+                    # Evaluate signal (we only run evaluate clock on the 1m closure to preserve CPU)
+                    if tf_match == "1m" and ws_manager.global_state != "DATA_STARVED":
                         signal = await signal_engine.evaluate(
                             current_price=float(k["c"]),
                             candles=candle_buffer,

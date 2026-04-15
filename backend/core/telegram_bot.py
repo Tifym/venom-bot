@@ -81,6 +81,8 @@ class TelegramBot:
         dir_str = signal.direction.name
         score = signal.total_score
         mode = signal.mode.name
+        if signal.mode.name == "CUSTOM" and hasattr(signal, 'preset') and signal.preset.custom_options:
+            mode = f"CUSTOM ({signal.preset.custom_options.name})"
         low = f"{signal.entry_low:.2f}"
         high = f"{signal.entry_high:.2f}"
         
@@ -124,6 +126,7 @@ class TelegramBot:
    • Order Flow: {ob_ratio}x bid/ask — +{ob_pts} pts
    • Volume: {vol_mult}x spike — +{vol_pts} pts
    • Funding: {funding}% — +{fund_pts} pts
+   • BBands Pierce — Checked
 
 ⚡ <b>Context:</b>
    {liq_boost}

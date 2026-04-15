@@ -1,12 +1,14 @@
 import uuid
 import time
 import asyncio
-import structlog
+import pandas as pd
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
+import structlog
+from ta.volatility import BollingerBands
 
 from ..models.signal import VenomSignal, ConfluenceMetrics
-from ..models.enums import SignalDirection, VenomZone, SignalMode, DivergenceType
+from ..models.enums import SignalDirection, SignalMode, DivergenceType
 from .fibonacci import FibonacciPocket
 from .divergence import DivergenceDetector
 from .orderbook import OrderBookTracker
@@ -51,9 +53,9 @@ class SignalEngine:
         is_green2 = c2.close > c2.open
         
         if direction == "LONG" and not is_green1 and is_green2 and body2 > body1 and c2.close > c1.open:
-            score = 10 # Bullish engulfing
+            score = 10
         elif direction == "SHORT" and is_green1 and not is_green2 and body2 > body1 and c2.close < c1.open:
-            score = 10 # Bearish engulfing
+            score = 10
         return score
 
     async def _async_vol(self, candles: List) -> int:
@@ -61,112 +63,132 @@ class SignalEngine:
         vols = [c.volume for c in candles[-20:]]
         sma = sum(vols) / 20
         last_vol = candles[-1].volume
-        if last_vol > sma * 1.5:
-            return 20
+        return 20 if last_vol > sma * 1.5 else 0
+
+    async def _async_bbands(self, candles: List) -> int:
+        if len(candles) < 20: return 0
+        if not self.preset.custom_options or not self.preset.custom_options.bbands_enabled:
+            return 0
+            
+        c_closes = pd.Series([c.close for c in candles[-20:]])
+        bb = BollingerBands(close=c_closes, window=20, window_dev=self.preset.custom_options.bbands_upper)
+        upper = bb.bollinger_hband().iloc[-1]
+        lower = bb.bollinger_lband().iloc[-1]
+        c_price = c_closes.iloc[-1]
+        
+        # Super simple check: +15 if piercing upper/lower band
+        if c_price > upper or c_price < lower:
+            return 15
         return 0
 
     async def evaluate(self, current_price: float, candles: Dict[str, List], is_ws_healthy: bool) -> Optional[VenomSignal]:
         start_time = time.perf_counter()
         
         try:
-            # 1. Price enters pocket zone
-            zone = self.fib_tracker.check_zone_touch(current_price)
-            if not zone or zone.name.lower() not in self.preset.zones:
-                return None
+            # 1. Dynamically maintain ZigZag mapping so pockets aren't forever empty
+            m1_candles = candles.get('1m', [])
+            if len(m1_candles) >= 50:
+                swings = self.fib_tracker.calculate_zig_zag(m1_candles)
                 
+                # Apply custom fib overrides if CUSTOM active
+                custom_fibs = None
+                if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
+                    custom_fibs = self.preset.custom_options.custom_fibs
+                    
+                self.fib_tracker.calculate_pockets(swings, custom_fibs)
+
             # 2. Check strict conditions
             if not is_ws_healthy:
                 self.rejected_signals += 1
-                logger.debug("signal_rejected", reason="no_healthy_ws")
                 return None
                 
-            last_candle_time = candles['1m'][-1].timestamp.replace(tzinfo=timezone.utc).timestamp()
-            if time.time() - last_candle_time > 10:
+            if not m1_candles:
+                return None
+                
+            last_candle_time = m1_candles[-1].timestamp.replace(tzinfo=timezone.utc).timestamp()
+            if time.time() - last_candle_time > 15:
                 self.rejected_signals += 1
-                logger.debug("signal_rejected", reason="stale_candles_>10s")
                 return None
 
-            # Initial guess direction based on zone placement maybe? 
-            # We'll determine direction from Divergence & Orderbook. Let's do OB first because it's fast.
+            # 3. Price enters pocket zone
+            zone = self.fib_tracker.check_zone_touch(current_price)
+            if not zone or zone.lower() not in [z.lower() for z in self.preset.zones]:
+                # Force silent reject, normal state
+                return None
+
             ob_score, ob_dir = await self._async_ob()
             if ob_dir == "NONE":
                 self.rejected_signals += 1
-                logger.debug("signal_rejected", reason="neutral_orderbook")
                 return None
                 
             direction = SignalDirection.LONG if ob_dir == "LONG" else SignalDirection.SHORT
 
-            # 3. Parallel async checks
-            div_res, fund_res, pa_score, vol_score = await asyncio.gather(
-                self._async_div(candles.get('1m', [])),
+            # Extract highest required requested timeframe locally to save compute
+            target_tfs = ["1m"]
+            if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
+                target_tfs = self.preset.custom_options.timeframes
+
+            # Determine best TF candle array available for Div/BB computation
+            best_tf = "1m"
+            for tf in reversed(target_tfs):
+                if candles.get(tf) and len(candles[tf]) >= 20:
+                    best_tf = tf
+                    break
+
+            # 4. Parallel async checks
+            div_res, fund_res, pa_score, vol_score, bb_score = await asyncio.gather(
+                self._async_div(candles.get(best_tf, m1_candles)),
                 self._async_fund(direction.name),
-                self._async_pa(candles.get('1m', []), direction.name),
-                self._async_vol(candles.get('1m', []))
+                self._async_pa(m1_candles, direction.name),
+                self._async_vol(m1_candles),
+                self._async_bbands(candles.get(best_tf, m1_candles))
             )
             
             div_type, div_score = div_res
             fund_score, fund_rate = fund_res
             liq_boost = self.liq_monitor.get_boost(direction.name)
 
-            total_score = ob_score + div_score + fund_score + pa_score + vol_score + liq_boost
+            total_score = ob_score + div_score + fund_score + pa_score + vol_score + liq_boost + bb_score
 
-            end_time = time.perf_counter()
-            exec_time = (end_time - start_time) * 1000 # ms
-            
+            exec_time = (time.perf_counter() - start_time) * 1000
             if exec_time > 500:
                 self.rejected_signals += 1
-                logger.debug("signal_rejected", reason="exec_time_>500ms", ms=exec_time)
                 return None
 
-            # 4. Compare to threshold
             if total_score < self.preset.min_score:
                 self.rejected_signals += 1
-                logger.info("signal_rejected", reason="below_threshold", score=total_score, required=self.preset.min_score)
                 return None
-
-            # 5. Passes: Generate Signal
-            confluence = ConfluenceMetrics(
-                divergence_score=div_score,
-                divergence_tfs=["1m"],
-                divergence_type=div_type,
-                orderbook_score=ob_score,
-                orderbook_ratio=self.ob_tracker.calculate_imbalance()[0],
-                volume_score=vol_score,
-                volume_surge=0, # Simplified
-                funding_score=fund_score,
-                funding_rate=fund_rate,
-                price_action_score=pa_score,
-                liquidation_boost=liq_boost
-            )
 
             sl_pct = 0.005
             tp_pct = 0.01
             
-            if direction == SignalDirection.LONG:
-                sl = current_price * (1 - sl_pct)
-                tp1 = current_price * (1 + tp_pct)
-                tp2 = current_price * (1 + (tp_pct*2))
-            else:
-                sl = current_price * (1 + sl_pct)
-                tp1 = current_price * (1 - tp_pct)
-                tp2 = current_price * (1 - (tp_pct*2))
-
             sig = VenomSignal(
                 id=str(uuid.uuid4()),
                 direction=direction,
                 mode=self.mode,
                 zone=zone,
                 total_score=int(total_score),
-                confluence=confluence,
+                confluence=ConfluenceMetrics(
+                    divergence_score=div_score,
+                    divergence_tfs=[best_tf],
+                    divergence_type=div_type,
+                    orderbook_score=ob_score,
+                    orderbook_ratio=self.ob_tracker.calculate_imbalance()[0],
+                    volume_score=vol_score,
+                    volume_surge=0,
+                    funding_score=fund_score,
+                    funding_rate=fund_rate,
+                    price_action_score=pa_score,
+                    liquidation_boost=liq_boost
+                ),
                 entry_low=current_price * 0.999,
                 entry_high=current_price * 1.001,
-                stop_loss=sl,
-                tp1=tp1,
-                tp2=tp2
+                stop_loss=current_price * (1 - sl_pct) if direction == SignalDirection.LONG else current_price * (1 + sl_pct),
+                tp1=current_price * (1 + tp_pct) if direction == SignalDirection.LONG else current_price * (1 - tp_pct),
+                tp2=current_price * (1 + tp_pct*2) if direction == SignalDirection.LONG else current_price * (1 - tp_pct*2)
             )
             
             self.recent_signals.append(sig)
-            logger.info("signal_generated_score_87" if total_score == 87 else f"signal_generated_score_{int(total_score)}")
             return sig
 
         except Exception as e:
