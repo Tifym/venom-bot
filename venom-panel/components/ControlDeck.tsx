@@ -352,12 +352,12 @@ export function ControlDeck() {
                      <Zap size={14} /> Divergence Matrix
                    </label>
                    <div className="flex flex-wrap gap-1">
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map((tf: string) => (
                        <button
                          key={tf}
                          onClick={() => {
-                            const current = config.preset?.custom_options?.tfs_divergence || [];
-                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            const current: string[] = config.preset?.custom_options?.tfs_divergence || [];
+                            const next = current.includes(tf) ? current.filter((t: string) => t !== tf) : [...current, tf];
                             setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_divergence: next } } });
                          }}
                          className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
@@ -377,12 +377,12 @@ export function ControlDeck() {
                      <Activity size={14} /> Bollinger Matrix
                    </label>
                    <div className="flex flex-wrap gap-1">
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map((tf: string) => (
                        <button
                          key={tf}
                          onClick={() => {
-                            const current = config.preset?.custom_options?.tfs_bollinger || [];
-                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            const current: string[] = config.preset?.custom_options?.tfs_bollinger || [];
+                            const next = current.includes(tf) ? current.filter((t: string) => t !== tf) : [...current, tf];
                             setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_bollinger: next } } });
                          }}
                          className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
@@ -402,12 +402,12 @@ export function ControlDeck() {
                      <Layers size={14} /> Fibonacci Matrix
                    </label>
                    <div className="flex flex-wrap gap-1">
-                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map(tf => (
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h", "1d"].map((tf: string) => (
                        <button
                          key={tf}
                          onClick={() => {
-                            const current = config.preset?.custom_options?.tfs_fib || [];
-                            const next = current.includes(tf) ? current.filter(t => t !== tf) : [...current, tf];
+                            const current: string[] = config.preset?.custom_options?.tfs_fib || [];
+                            const next = current.includes(tf) ? current.filter((t: string) => t !== tf) : [...current, tf];
                             setConfig({ ...config, preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tfs_fib: next } } });
                          }}
                          className={`px-2 py-1 rounded text-[9px] font-mono border transition-all ${
