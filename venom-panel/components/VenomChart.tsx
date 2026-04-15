@@ -64,71 +64,79 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   }, []);
 
   // Update logic
+  const lastTimeRef = useRef<number>(0);
+
   useEffect(() => {
     if (!liveData || !seriesRef.current) return;
 
-    // 1. Handle Kline updates
-    if (liveData.stream?.includes('kline')) {
-      const k = liveData.data?.k;
-      if (!k) return;
-      const time = Math.floor(Number(k.t) / 1000);
-      
-      seriesRef.current.update({
-        time,
-        open: parseFloat(k.o),
-        high: parseFloat(k.h),
-        low: parseFloat(k.l),
-        close: parseFloat(k.c),
-      });
-
-      volumeRef.current.update({
-        time,
-        value: parseFloat(k.v),
-        color: parseFloat(k.c) >= parseFloat(k.o) ? '#00FF4140' : '#FF004040',
-      });
-    }
-
-    // 2. Handle Signal Markers and Price Lines
-    if (liveData.type === 'signal') {
-      const s = liveData.data;
-      const time = Math.floor(Date.now() / 1000);
-      
-      // Add Marker
-      const currentMarkers = seriesRef.current.getMarkers() || [];
-      seriesRef.current.setMarkers([
-        ...currentMarkers,
-        {
+    try {
+      // 1. Handle Kline updates (STRICT 1M FILTER)
+      if (liveData.stream?.includes('kline_1m')) {
+        const k = liveData.data?.k;
+        if (!k) return;
+        const time = Math.floor(Number(k.t) / 1000);
+        lastTimeRef.current = time;
+        
+        seriesRef.current.update({
           time,
-          position: s.direction?.toUpperCase() === 'LONG' ? 'belowBar' : 'aboveBar',
-          color: s.direction?.toUpperCase() === 'LONG' ? '#00FF41' : '#FF0040',
-          shape: s.direction?.toUpperCase() === 'LONG' ? 'arrowUp' : 'arrowDown',
-          text: `${s.direction} @ ${s.entry_low}`,
-        }
-      ].slice(-20)); // Keep last 20 signs
+          open: parseFloat(k.o),
+          high: parseFloat(k.h),
+          low: parseFloat(k.l),
+          close: parseFloat(k.c),
+        });
 
-      // Draw TP/SL Lines
-      priceLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
-      priceLinesRef.current = [];
+        volumeRef.current.update({
+          time,
+          value: parseFloat(k.v),
+          color: parseFloat(k.c) >= parseFloat(k.o) ? '#00FF4140' : '#FF004040',
+        });
+      }
 
-      const levels = [
-        { price: s.tp1, color: '#00FF41', title: 'TP1' },
-        { price: s.tp2, color: '#00FFFF', title: 'TP2' },
-        { price: s.stop_loss, color: '#FF0040', title: 'SL' },
-      ];
+      // 2. Handle Signal Markers and Price Lines
+      if (liveData.type === 'signal') {
+        const s = liveData.data;
+        // Use last known candle time to avoid out-of-order crashes
+        const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
+        
+        // Add Marker
+        const currentMarkers = seriesRef.current.getMarkers() || [];
+        seriesRef.current.setMarkers([
+          ...currentMarkers,
+          {
+            time,
+            position: s.direction?.toUpperCase() === 'LONG' ? 'belowBar' : 'aboveBar',
+            color: s.direction?.toUpperCase() === 'LONG' ? '#00FF41' : '#FF0040',
+            shape: s.direction?.toUpperCase() === 'LONG' ? 'arrowUp' : 'arrowDown',
+            text: `${s.direction} @ ${s.entry_low}`,
+          }
+        ].slice(-20)); // Keep last 20 signs
 
-      levels.forEach(lvl => {
-        if (lvl.price) {
-          const pl = seriesRef.current.createPriceLine({
-            price: lvl.price,
-            color: lvl.color,
-            lineWidth: 1,
-            lineStyle: 2, // dashed
-            axisLabelVisible: true,
-            title: lvl.title,
-          });
-          priceLinesRef.current.push(pl);
-        }
-      });
+        // Draw TP/SL Lines
+        priceLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
+        priceLinesRef.current = [];
+
+        const levels = [
+          { price: s.tp1, color: '#00FF41', title: 'TP1' },
+          { price: s.tp2, color: '#00FFFF', title: 'TP2' },
+          { price: s.stop_loss, color: '#FF0040', title: 'SL' },
+        ];
+
+        levels.forEach(lvl => {
+          if (lvl.price) {
+            const pl = seriesRef.current.createPriceLine({
+              price: lvl.price,
+              color: lvl.color,
+              lineWidth: 1,
+              lineStyle: 2, // dashed
+              axisLabelVisible: true,
+              title: lvl.title,
+            });
+            priceLinesRef.current.push(pl);
+          }
+        });
+      }
+    } catch (e) {
+      console.error("[VenomChart] Update error:", e);
     }
   }, [liveData]);
 
