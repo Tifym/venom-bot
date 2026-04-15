@@ -33,7 +33,7 @@ signal_engine.liq_monitor.callback = on_liquidation_cascade
 
 # Data Sources Definitions
 BINANCE_WS = "wss://fstream.binance.com/stream?streams=btcusdt@kline_1m/btcusdt@kline_3m/btcusdt@kline_5m/btcusdt@kline_15m/btcusdt@kline_30m/btcusdt@kline_1h/btcusdt@kline_4h/btcusdt@kline_1d/btcusdt@depth20@100ms/btcusdt@forceOrder/btcusdt@markPrice@1s"
-BYBIT_WS = 'wss://stream.bybit.com/v5/public/linear?args=["orderbook.1.BTCUSDT","tickers.BTCUSDT","liquidation.BTCUSDT"]'
+BYBIT_WS = "wss://stream.bybit.com/v5/public/linear"
 MEMPOOL_WS = "wss://mempool.space/api/v1/ws"
 
 ws_manager.add_source("binance", BINANCE_WS)
@@ -99,6 +99,16 @@ async def _process_stream(source: str, data: Dict[str, Any]):
                                 "type": "signal",
                                 "data": signal.dict()
                             })
+                        
+                        # Even if no signal, broadcast raw technical data for chart HUD
+                        await ws_router.frontend_ws_manager.broadcast({
+                            "type": "raw_tech",
+                            "divergence": {
+                                "type": div_type.name if hasattr(div_type, 'name') else str(div_type),
+                                "score": div_score
+                            },
+                            "fib_pockets": signal_engine.fib_tracker.pockets
+                        })
 
             elif "depth" in stream:
                 bids = payload.get("b", [])
@@ -199,6 +209,12 @@ async def lifespan(app: FastAPI):
             await ws_router.frontend_ws_manager.broadcast({
                 "type": "status_update",
                 "payload": get_health_status()
+            })
+            # Also push engine diagnostic stats
+            await ws_router.frontend_ws_manager.broadcast({
+                "type": "engine_status",
+                "rejected": signal_engine.rejected_signals,
+                "reason": "WAITING FOR CONFLUENCE" if not signal_engine.recent_signals else "MONITORING"
             })
     
     asyncio.create_task(_push_status_telemetry())

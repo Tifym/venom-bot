@@ -148,14 +148,18 @@ async def save_profile(profile: Dict[str, Any]):
         raw = await redis_client.get(REDIS_PROFILES_KEY)
         profiles = json.loads(raw) if raw else []
         
-        # Prevent duplicates by name
-        name = profile.get("name", "UNNAMED")
+        name = profile.get("name") or profile.get("preset", {}).get("custom_options", {}).get("name") or "UNNAMED"
+        profile["name"] = name
+        
+        # Remove old profile with same name if it exists, then add new one
         profiles = [p for p in profiles if p.get("name") != name]
         profiles.append(profile)
         
         await redis_client.set(REDIS_PROFILES_KEY, json.dumps(profiles))
+        logger.info("profile_saved", name=name, total=len(profiles))
         return {"status": "success", "profiles": profiles}
     except Exception as e:
+        logger.error("profile_save_failed", error=str(e))
         return {"status": "error", "message": str(e)}
 
 @router.delete("/profiles/{name}")

@@ -194,32 +194,15 @@ export function ControlDeck() {
                     className="bg-black/60 border border-white/10 rounded px-3 py-1.5 font-mono text-sm text-white focus:outline-none focus:border-venom-green/50 transition-colors"
                   />
                 </div>
+              </div>
 
-                {/* Timeframes */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Timeframes (comma separated)</label>
-                  <input
-                    type="text"
-                    value={(config.preset?.custom_options?.timeframes || ["1m", "5m"]).join(", ")}
-                    onChange={e => setConfig({
-                      ...config,
-                      preset: {
-                        ...config.preset,
-                        custom_options: {
-                          ...config.preset.custom_options,
-                          timeframes: e.target.value.replace(/\s/g, "").split(",").filter(Boolean)
-                        }
-                      }
-                    })}
-                    placeholder="1m, 5m, 15m, 1h"
-                    className="bg-black/60 border border-white/10 rounded px-3 py-1.5 font-mono text-sm text-white focus:outline-none focus:border-venom-green/50 transition-colors"
-                  />
-                </div>
-
-                {/* Bollinger Bands */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest flex justify-between">
-                    Bollinger Bands
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Bollinger Controls */}
+                <div className="flex flex-col gap-2 p-3 bg-black/40 rounded border border-white/5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest flex items-center gap-2">
+                       <Zap size={10} className="text-toxic" /> Bollinger Engine
+                    </label>
                     <label className="flex items-center gap-1 cursor-pointer">
                       <input
                         type="checkbox"
@@ -228,29 +211,69 @@ export function ControlDeck() {
                           ...config,
                           preset: { ...config.preset, custom_options: { ...config.preset.custom_options, bbands_enabled: e.target.checked } }
                         })}
-                        className="accent-venom-green"
+                        className="accent-toxic"
                       />
-                      <span className="text-white/60">{config.preset?.custom_options?.bbands_enabled ? "ON" : "OFF"}</span>
                     </label>
-                  </label>
-                  <div className="flex gap-2">
-                    {["bbands_lower", "bbands_upper"].map(key => (
-                      <input
-                        key={key}
-                        type="number"
-                        step="0.1"
-                        min="0.5"
-                        max="5"
-                        value={config.preset?.custom_options?.[key] ?? 2}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/30 font-mono">WINDOW</span>
+                      <input 
+                        type="number" 
+                        value={config.preset?.custom_options?.bbands_window ?? 20}
                         onChange={e => setConfig({
                           ...config,
-                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, [key]: parseFloat(e.target.value) } }
+                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, bbands_window: parseInt(e.target.value) } }
                         })}
-                        placeholder={key === "bbands_lower" ? "Lower σ" : "Upper σ"}
-                        className="w-1/2 bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-white focus:outline-none focus:border-venom-green/50"
+                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white" 
                       />
-                    ))}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/30 font-mono">UPPER σ</span>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={config.preset?.custom_options?.bbands_upper ?? 2.0}
+                        onChange={e => setConfig({
+                          ...config,
+                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, bbands_upper: parseFloat(e.target.value) } }
+                        })}
+                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white" 
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/30 font-mono">LOWER σ</span>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={config.preset?.custom_options?.bbands_lower ?? 2.0}
+                        onChange={e => setConfig({
+                          ...config,
+                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, bbands_lower: parseFloat(e.target.value) } }
+                        })}
+                        className="bg-black/40 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white" 
+                      />
+                    </div>
                   </div>
+                </div>
+
+                {/* Additional Raw Data Filters */}
+                <div className="flex flex-col gap-2 p-3 bg-black/40 rounded border border-white/5">
+                   <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest flex items-center gap-2">
+                       <BarChart2 size={10} className="text-toxic" /> Volume Filter
+                    </label>
+                    <div className="flex items-center gap-3">
+                       <span className="text-[9px] text-white/30 font-mono">MIN SURGE %</span>
+                       <input 
+                         type="number"
+                         value={config.preset?.atr_filter ?? 1.5}
+                         onChange={e => setConfig({
+                           ...config,
+                           preset: { ...config.preset, atr_filter: parseFloat(e.target.value) }
+                         })}
+                         className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs font-mono text-white"
+                       />
+                    </div>
                 </div>
               </div>
 
