@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional
 from datetime import datetime
 from .enums import SignalDirection, VenomZone, SignalMode, DivergenceType
 
@@ -25,17 +25,17 @@ class VenomSignal(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     direction: SignalDirection
     mode: SignalMode
-    zone: VenomZone
-    
-    total_score: int = Field(..., ge=0, le=110)
+    zone: str  # plain string — alpha/beta/gamma/delta/omega
+
+    total_score: int = Field(..., ge=0)  # removed le=110, scores can exceed with boosts
     confluence: ConfluenceMetrics
-    
+
     entry_low: float
     entry_high: float
     stop_loss: float
     tp1: float
     tp2: float
     tp3: Optional[float] = None
-    
+
     status: str = "PENDING"
     pnl_r: Optional[float] = None

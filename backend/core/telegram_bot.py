@@ -115,7 +115,7 @@ class TelegramBot:
 📊 <b>Confidence: {score}/100</b> │ {mode} │ Valid: 15min
 
 🎯 <b>Entry Zone:</b> ${low} — ${high}
-   └─ <b>{signal.zone.name} POCKET</b> ({fib_low}-{fib_high} Fib)
+   └─ <b>{signal.zone.upper()} POCKET</b> ({fib_low}-{fib_high} Fib)
 
 ⛔ <b>Stop Loss:</b> ${sl} (-{sl_pct}%)
 ✅ <b>TP1:</b> ${tp1} (1:2 R:R)

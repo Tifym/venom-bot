@@ -1,11 +1,11 @@
-from pydantic import BaseModel, root_validator, validator
-from typing import List, Tuple, Any, Dict
+from pydantic import BaseModel, field_validator
+from typing import List, Tuple, Any, Dict, Optional
 from datetime import datetime
 
 class OrderBookUpdate(BaseModel):
     symbol: str
-    bids: List[Tuple[float, float]] # Price, Volume
-    asks: List[Tuple[float, float]] # Price, Volume
+    bids: List[Tuple[float, float]]
+    asks: List[Tuple[float, float]]
     timestamp: datetime
     exchange: str
 
@@ -28,43 +28,33 @@ class Candle(BaseModel):
 
 class LiquidationEvent(BaseModel):
     symbol: str
-    side: str # "SELL" means long liquidation
+    side: str
     price: float
     qty: float
     timestamp: datetime
     exchange: str
 
 class KlineData(BaseModel):
-    t: int # start time
-    T: int # close time
-    s: str # symbol
-    i: str # interval
-    f: int # first trade ID
-    L: int # last trade ID
-    o: float # open
-    c: float # close
-    h: float # high
-    l: float # low
-    v: float # base asset volume
-    n: int # number of trades
-    x: bool # is closed
-    q: float # quote asset volume
-    V: float # taker buy base volume
-    Q: float # taker buy quote volume
-    B: str # ignore
-
-    @validator('c')
-    def validate_price(cls, v, values):
-        assert v > 0, "Invalid close price"
-        return v
-    
-    @validator('o')
-    def validate_open(cls, v):
-        assert v > 0, "Invalid open price"
-        return v
+    t: int
+    T: int
+    s: str
+    i: str
+    f: int
+    L: int
+    o: float
+    c: float
+    h: float
+    l: float
+    v: float
+    n: int
+    x: bool
+    q: float
+    V: float
+    Q: float
+    B: str
 
 class BinanceKlineEvent(BaseModel):
-    e: str  # event type
-    E: int  # event time
-    s: str  # symbol
-    k: KlineData  # candle data
+    e: str
+    E: int
+    s: str
+    k: KlineData
