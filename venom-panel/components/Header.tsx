@@ -25,7 +25,7 @@ export function Header() {
         <span className="font-display font-semibold text-xl tracking-tight">VENOM BOT</span>
       </div>
       
-      <div className="flex gap-8 items-center bg-white/5 px-6 py-2 rounded-full border border-white/10">
+      <div className="hidden md:flex gap-8 items-center bg-white/5 px-6 py-2 rounded-full border border-white/10">
         <div className="flex flex-col items-center">
           <span className="text-[10px] text-white/50 uppercase tracking-widest font-mono">BTC/USDT</span>
           <span className="font-mono text-toxic font-medium tracking-tight">

@@ -344,6 +344,64 @@ export function ControlDeck() {
                   </div>
                 </div>
               )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                 {/* TF Diversion */}
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">Div Timeframe</label>
+                   <select 
+                     value={config.preset?.custom_options?.tf_divergence || "1m"}
+                     onChange={e => setConfig({
+                       ...config,
+                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_divergence: e.target.value } }
+                     })}
+                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
+                   >
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
+                   </select>
+                 </div>
+                 {/* TF BB */}
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">BB Timeframe</label>
+                   <select 
+                     value={config.preset?.custom_options?.tf_bollinger || "1m"}
+                     onChange={e => setConfig({
+                       ...config,
+                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_bollinger: e.target.value } }
+                     })}
+                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
+                   >
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
+                   </select>
+                 </div>
+                 {/* TF Fib */}
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">Fib Timeframe</label>
+                   <select 
+                     value={config.preset?.custom_options?.tf_fib || "1m"}
+                     onChange={e => setConfig({
+                       ...config,
+                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_fib: e.target.value } }
+                     })}
+                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
+                   >
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
+                   </select>
+                 </div>
+                 {/* TF Chart Default */}
+                 <div className="flex flex-col gap-1">
+                   <label className="text-[9px] text-white/40 font-mono uppercase">Default Chart</label>
+                   <select 
+                     value={config.preset?.custom_options?.tf_chart || "1m"}
+                     onChange={e => setConfig({
+                       ...config,
+                       preset: { ...config.preset, custom_options: { ...config.preset.custom_options, tf_chart: e.target.value } }
+                     })}
+                     className="bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-toxic"
+                   >
+                     {["1m", "3m", "5m", "15m", "30m", "1h", "4h"].map(tf => <option key={tf} value={tf}>{tf.toUpperCase()}</option>)}
+                   </select>
+                 </div>
+              </div>
             </div>
           )}
 

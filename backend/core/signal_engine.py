@@ -87,8 +87,22 @@ class SignalEngine:
         try:
             # 1. Dynamically maintain ZigZag mapping so pockets aren't forever empty
             m1_candles = candles.get('1m', [])
-            if len(m1_candles) >= 50:
-                swings = self.fib_tracker.calculate_zig_zag(m1_candles)
+            
+            # Determine specific timeframes from CUSTOM options if active
+            tf_fib = "1m"
+            tf_div = "1m"
+            tf_bb = "1m"
+            
+            if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
+                opts = self.preset.custom_options
+                tf_fib = opts.tf_fib
+                tf_div = opts.tf_divergence
+                tf_bb = opts.tf_bollinger
+
+            # 1. Dynamically maintain ZigZag mapping so pockets aren't forever empty
+            fib_candles = candles.get(tf_fib, m1_candles)
+            if len(fib_candles) >= 50:
+                swings = self.fib_tracker.calculate_zig_zag(fib_candles)
                 
                 # Apply custom fib overrides if CUSTOM active
                 custom_fibs = None
@@ -123,25 +137,13 @@ class SignalEngine:
                 
             direction = SignalDirection.LONG if ob_dir == "LONG" else SignalDirection.SHORT
 
-            # Extract highest required requested timeframe locally to save compute
-            target_tfs = ["1m"]
-            if self.mode == SignalMode.CUSTOM and self.preset.custom_options:
-                target_tfs = self.preset.custom_options.timeframes
-
-            # Determine best TF candle array available for Div/BB computation
-            best_tf = "1m"
-            for tf in reversed(target_tfs):
-                if candles.get(tf) and len(candles[tf]) >= 20:
-                    best_tf = tf
-                    break
-
             # 4. Parallel async checks
             div_res, fund_res, pa_score, vol_score, bb_score = await asyncio.gather(
-                self._async_div(candles.get(best_tf, m1_candles)),
+                self._async_div(candles.get(tf_div, m1_candles)),
                 self._async_fund(direction.name),
                 self._async_pa(m1_candles, direction.name),
                 self._async_vol(m1_candles),
-                self._async_bbands(candles.get(best_tf, m1_candles))
+                self._async_bbands(candles.get(tf_bb, m1_candles))
             )
             
             div_type, div_score = div_res
@@ -170,7 +172,7 @@ class SignalEngine:
                 total_score=int(total_score),
                 confluence=ConfluenceMetrics(
                     divergence_score=div_score,
-                    divergence_tfs=[best_tf],
+                    divergence_tfs=[tf_div],
                     divergence_type=div_type,
                     orderbook_score=ob_score,
                     orderbook_ratio=self.ob_tracker.calculate_imbalance()[0],

@@ -17,9 +17,44 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     fib: true,
     div: true
   });
+  
+  const [activeTF, setActiveTF] = useState("1m");
 
   const lastTimeRef = useRef<number>(0);
   const candleHistory = useRef<any[]>([]);
+  const fibLinesRef = useRef<any[]>([]);
+
+  // Helper to fetch history
+  const fetchHistory = useCallback(async (tf: string) => {
+    if (!seriesRef.current) return;
+    try {
+      const res = await fetch(`/api/history?timeframe=${tf}`);
+      if (res.ok) {
+        const history = await res.json();
+        if (history && history.length > 0) {
+          candleHistory.current = history;
+          seriesRef.current.setData(history.map((h: any) => ({
+            time: h.time,
+            open: h.open,
+            high: h.high,
+            low: h.low,
+            close: h.close
+          })));
+          volumeRef.current.setData(history.map((h: any) => ({
+            time: h.time,
+            value: h.volume,
+            color: h.close >= h.open ? '#00FF4140' : '#FF004040'
+          })));
+          updateBB(history);
+        } else {
+          seriesRef.current.setData([]);
+          volumeRef.current.setData([]);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch chart history:", e);
+    }
+  }, []);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -70,35 +105,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     chartRef.current = chart;
     bbRef.current = [bbUpper, bbMid, bbLower];
 
-    // Fetch History on Mount
-    const fetchHistory = async () => {
-      try {
-        const res = await fetch("/api/history?timeframe=1m");
-        if (res.ok) {
-          const history = await res.json();
-          if (history && history.length > 0) {
-            candleHistory.current = history;
-            candlestickSeries.setData(history.map((h: any) => ({
-              time: h.time,
-              open: h.open,
-              high: h.high,
-              low: h.low,
-              close: h.close
-            })));
-            volumeSeries.setData(history.map((h: any) => ({
-              time: h.time,
-              value: h.volume,
-              color: h.close >= h.open ? '#00FF4140' : '#FF004040'
-            })));
-            updateBB(history);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch chart history:", e);
-      }
-    };
-
-    fetchHistory();
+    fetchHistory(activeTF);
 
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
@@ -109,7 +116,13 @@ export function VenomChart({ liveData }: { liveData?: any }) {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, []);
+  }, [fetchHistory]);
+
+  // Handle Timeframe Switch
+  const handleTFSwitch = (tf: string) => {
+    setActiveTF(tf);
+    fetchHistory(tf);
+  };
 
   const calculateBB = (data: any[], period = 20, multiplier = 2) => {
     if (data.length < period) return null;
@@ -159,7 +172,49 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     if (!liveData || !seriesRef.current) return;
 
     try {
-      if (liveData.stream?.includes('kline_1m')) {
+      // 1. Raw Tech Data (Fib & Div)
+      if (liveData.type === 'raw_tech' && toggles.fib) {
+          // Clear old fib lines
+          fibLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
+          fibLinesRef.current = [];
+          
+          if (liveData.fib_pockets) {
+              Object.entries(liveData.fib_pockets).forEach(([zone, range]: any) => {
+                  if (!range || range.length < 2) return;
+                  const colors: any = { omega: '#00FF41', alpha: '#FF0040', beta: '#f59e0b' };
+                  const color = colors[zone] || 'rgba(255,255,255,0.2)';
+                  
+                  range.forEach((price: number, i: number) => {
+                    const pl = seriesRef.current.createPriceLine({
+                      price,
+                      color: color + (i === 0 ? '40' : '20'),
+                      lineWidth: 1,
+                      lineStyle: 1,
+                      axisLabelVisible: true,
+                      title: `${zone.toUpperCase()} ${i === 0 ? 'ENTRY' : 'SL'}`,
+                    });
+                    fibLinesRef.current.push(pl);
+                  });
+              });
+          }
+
+          if (liveData.divergence?.score > 0 && toggles.div) {
+              const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
+              const isBull = liveData.divergence.type.includes('BULL');
+              seriesRef.current.setMarkers([
+                ...(seriesRef.current.getMarkers() || []),
+                {
+                  time,
+                  position: isBull ? 'belowBar' : 'aboveBar',
+                  color: isBull ? '#00FF41' : '#FF0040',
+                  shape: 'circle',
+                  text: `DIV ${liveData.divergence.score}`,
+                }
+              ].slice(-50));
+          }
+      }
+
+      if (liveData.stream?.includes(`kline_${activeTF}`)) {
         const k = liveData.data?.k;
         if (!k) return;
         const time = Math.floor(Number(k.t) / 1000);
@@ -202,7 +257,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         const s = liveData.data;
         const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
         
-        const currentMarkers = seriesRef.current.getMarkers() || [];
+        const currentMarkers = (seriesRef.current.getMarkers() || []).filter((m: any) => m.time !== time);
         seriesRef.current.setMarkers([
           ...currentMarkers,
           {
@@ -242,7 +297,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     } catch (e) {
       console.error("[VenomChart] Update error:", e);
     }
-  }, [liveData, toggles.fib]);
+  }, [liveData, toggles.fib, activeTF]);
 
   return (
     <div className="w-full h-full relative group" id="chart-container">

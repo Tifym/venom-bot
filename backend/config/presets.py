@@ -7,7 +7,11 @@ class CustomOptions(BaseModel):
     bbands_upper: float = 2.0
     bbands_enabled: bool = False
     custom_fibs: Dict[str, List[float]] = {}
-    timeframes: List[str] = ["1m", "5m"]
+    timeframes: List[str] = ["1m", "5m"] # Legacy support
+    tf_chart: str = "1m"
+    tf_divergence: str = "1m"
+    tf_bollinger: str = "1m"
+    tf_fib: str = "1m"
 
 class PresetMode(BaseModel):
     min_score: int
