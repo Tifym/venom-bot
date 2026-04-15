@@ -251,3 +251,22 @@ async def get_stats():
             "best_zone": "NONE", "best_tf": "1M", "liq_boosts": 0,
             "latency": 0,
         }
+
+@router.get("/history")
+async def get_history(timeframe: str = "1m"):
+    """Expose the candle buffer for initial chart loading."""
+    from ..main import candle_buffer
+    buffer = candle_buffer.get(timeframe, [])
+    
+    # Map to lightweight-charts format
+    result = []
+    for c in buffer:
+        result.append({
+            "time": int(c.timestamp.timestamp()),
+            "open": c.open,
+            "high": c.high,
+            "low": c.low,
+            "close": c.close,
+            "volume": c.volume
+        })
+    return result

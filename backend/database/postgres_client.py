@@ -1,7 +1,7 @@
 import structlog
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, String, Float, Integer, DateTime
+from sqlalchemy import Column, String, Float, Integer, DateTime, select, desc
 from ..config.settings import settings
 
 logger = structlog.get_logger()
@@ -44,8 +44,38 @@ class PostgresClient:
             logger.error("postgres_connection_failed", error=str(e))
             self.engine = None
 
-    async def disconnect(self):
-        if self.engine:
-            await self.engine.dispose()
+    async def save_signal(self, s):
+        if not self.async_session: return
+        async with self.async_session() as session:
+            try:
+                record = SignalRecord(
+                    id=s.id,
+                    timestamp=s.timestamp,
+                    direction=s.direction.name if hasattr(s.direction, 'name') else str(s.direction),
+                    mode=s.mode.name if hasattr(s.mode, 'name') else str(s.mode),
+                    zone=s.zone,
+                    total_score=s.total_score,
+                    entry_low=s.entry_low,
+                    entry_high=s.entry_high,
+                    stop_loss=s.stop_loss,
+                    tp1=s.tp1,
+                    tp2=s.tp2,
+                    status=getattr(s, 'status', 'PENDING')
+                )
+                session.add(record)
+                await session.commit()
+            except Exception as e:
+                logger.error("signal_save_failed", error=str(e))
+
+    async def get_recent_signals(self, limit=50):
+        if not self.async_session: return []
+        async with self.async_session() as session:
+            try:
+                stmt = select(SignalRecord).order_by(desc(SignalRecord.timestamp)).limit(limit)
+                result = await session.execute(stmt)
+                return result.scalars().all()
+            except Exception as e:
+                logger.error("signal_load_failed", error=str(e))
+                return []
 
 postgres_client = PostgresClient()

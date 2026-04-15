@@ -46,6 +46,14 @@ ws_manager.add_source("bybit", BYBIT_WS,
 )
 ws_manager.add_source("mempool", MEMPOOL_WS, subscription_msg={"action": "init"})
 
+# Mempool needs a follow-up 'want' after init periodically or on connect
+async def _handle_mempool_extra(source, data):
+    if source == "mempool" and "mempoolInfo" in str(data):
+        # Once we see the init response, subscribe to stats
+        conn = ws_manager.connections.get("mempool")
+        if conn and conn.ws:
+            await conn.ws.send(json.dumps({"action": "want", "data": ["stats", "mempool-blocks"]}))
+
 async def _process_stream(source: str, data: Dict[str, Any]):
     try:
         if source == "binance":
@@ -85,6 +93,7 @@ async def _process_stream(source: str, data: Dict[str, Any]):
                             is_ws_healthy=ws_manager.is_healthy
                         )
                         if signal:
+                            await postgres_client.save_signal(signal) # Persist!
                             await telegram_bot_instance.send_signal(signal)
                             await ws_router.frontend_ws_manager.broadcast({
                                 "type": "signal",
@@ -135,13 +144,20 @@ async def _process_stream(source: str, data: Dict[str, Any]):
 ws_manager.add_callback("binance", _process_stream)
 ws_manager.add_callback("bybit", _process_stream)
 ws_manager.add_callback("mempool", _process_stream)
+ws_manager.add_callback("mempool", _handle_mempool_extra)
 
 def get_health_status() -> dict:
+    def _calc_latency(conn_name):
+        conn = ws_manager.connections.get(conn_name)
+        if not conn or conn.state != "HEALTHY": return 0
+        diff = time.time() - conn.last_msg_time
+        return max(1, int(diff * 1000))
+
     return {
         "binance_connected": ws_manager.connections["binance"].state == "HEALTHY",
-        "binance_latency": int(time.time() - ws_manager.connections["binance"].last_msg_time) * 1000 if ws_manager.connections["binance"].state == "HEALTHY" else 0,
+        "binance_latency": _calc_latency("binance"),
         "bybit_connected": ws_manager.connections["bybit"].state == "HEALTHY",
-        "bybit_latency": int(time.time() - ws_manager.connections["bybit"].last_msg_time) * 1000 if ws_manager.connections["bybit"].state == "HEALTHY" else 0,
+        "bybit_latency": _calc_latency("bybit"),
         "mempool_connected": ws_manager.connections["mempool"].state == "HEALTHY",
         "last_signal_ago": "N/A", # Will implement tracking from signal_engine
         "mode": signal_engine.mode.name,
@@ -162,6 +178,12 @@ async def lifespan(app: FastAPI):
 
     # CRITICAL: Verify telegram initialization immediately
     await telegram_bot_instance.initialize()
+    
+    # Restore recent signals from Postgres for continuity
+    records = await postgres_client.get_recent_signals(limit=20)
+    for r in reversed(records):
+        # Simple mapping back to signal engine's memory
+        signal_engine.recent_signals.append(r)
     
     # Start Telegram background polling non-blocking
     asyncio.create_task(telegram_bot_instance.start_polling())

@@ -52,6 +52,34 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     volumeRef.current = volumeSeries;
     chartRef.current = chart;
 
+    // Fetch History on Mount
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch("/api/history?timeframe=1m");
+        if (res.ok) {
+          const history = await res.json();
+          if (history && history.length > 0) {
+            candlestickSeries.setData(history.map((h: any) => ({
+              time: h.time,
+              open: h.open,
+              high: h.high,
+              low: h.low,
+              close: h.close
+            })));
+            volumeSeries.setData(history.map((h: any) => ({
+              time: h.time,
+              value: h.volume,
+              color: h.close >= h.open ? '#00FF4140' : '#FF004040'
+            })));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch chart history:", e);
+      }
+    };
+
+    fetchHistory();
+
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
     };
