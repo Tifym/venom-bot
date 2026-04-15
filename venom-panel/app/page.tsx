@@ -33,7 +33,7 @@ export default function VenomPanel() {
   }, [liveData]);
 
   return (
-    <div className="venom-container overflow-y-auto">
+    <div className="venom-container">
       <Header />
       
       {status === 'DATA_STARVED' && (
