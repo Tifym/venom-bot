@@ -36,7 +36,7 @@ export default function VenomPanel() {
     <div className="venom-container">
       <Header />
       
-      {status === 'DATA_STARVED' && (
+      {status.global === 'DATA_STARVED' && (
         <div className="text-center bg-alert-red/20 text-alert-red py-2 font-mono text-sm border-y border-alert-red/30 w-full mb-4">
           LIVE DATA UNAVAILABLE — SIGNALS PAUSED
         </div>
