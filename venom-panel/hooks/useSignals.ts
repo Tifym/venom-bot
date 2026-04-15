@@ -7,10 +7,11 @@ export function useSignals() {
   useEffect(() => {
     const fetchSignals = async () => {
       try {
-        const res = await fetch(`/api/signals?limit=20`);
+        const res = await fetch('/api/signals?limit=20');
         if (res.ok) {
           const data = await res.json();
-          setSignals(data);
+          // API returns { signals: [...] } — extract the array
+          setSignals(Array.isArray(data) ? data : (data.signals ?? []));
         }
       } catch (err) {
         console.error('Failed to fetch signals:', err);
@@ -20,9 +21,7 @@ export function useSignals() {
     };
 
     fetchSignals();
-    
-    // In a real implementation, we'd also listen to the WebSocket for NEW signals
-    // and append them to the state. handled in the main page usually.
+    // Live signals are appended via WebSocket handler in page.tsx
   }, []);
 
   return { signals, setSignals, loading };

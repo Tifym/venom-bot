@@ -1,9 +1,10 @@
 "use client";
 
 import { useSystemStatus } from "../hooks/useSystemStatus";
+import { SystemStatus } from "@/types";
 
 export function FooterStatus({ connected, latency }: { connected?: boolean, latency?: number }) {
-  const status = useSystemStatus();
+  const status: SystemStatus = useSystemStatus();
   
   const b_stat = status?.binance_connected;
   const by_stat = status?.bybit_connected;

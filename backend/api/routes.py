@@ -154,10 +154,14 @@ async def get_signals(limit: int = 20):
 
 @router.get("/stats")
 async def get_stats():
+    # Import here to avoid circular dependencies
+    from ..main import get_health_status
+    
     try:
         total = len(signal_engine.recent_signals)
-        wins = [s for s in signal_engine.recent_signals if s.total_score >= signal_engine.preset.min_score + 10]
-        win_rate = (len(wins) / total * 100) if total > 0 else 0.0
+        # Simple win_rate logic based on high confluence score for now
+        hits = [s for s in signal_engine.recent_signals if s.total_score >= 80]
+        win_rate = (len(hits) / total * 100) if total > 0 else 0.0
 
         zone_counts: Dict[str, int] = {}
         for s in signal_engine.recent_signals:
@@ -165,36 +169,25 @@ async def get_stats():
             zone_counts[z] = zone_counts.get(z, 0) + 1
         best_zone = max(zone_counts, key=zone_counts.get) if zone_counts else "NONE"
 
-        ob_ratio = 0.0
-        try:
-            ob_ratio = signal_engine.ob_tracker.calculate_imbalance()[0]
-        except Exception:
-            pass
-
-        funding_rate = 0.0
-        try:
-            funding_rate = signal_engine.funding_tracker.current_funding_rate
-        except Exception:
-            pass
-
+        health = get_health_status()
+        
         return {
             "signals_24h": total,
             "win_rate": round(win_rate, 1),
-            "profit_factor": 0.0,
-            "avg_r": 0.0,
+            "profit_factor": 0.0, # Tracking requires trade outcome state
+            "avg_r": 0.0,          # Tracking requires trade outcome state
             "best_zone": best_zone,
             "best_tf": "1M",
             "liq_boosts": sum(
                 1 for s in signal_engine.recent_signals
                 if getattr(getattr(s, 'confluence', None), 'liquidation_boost', 0) > 0
             ),
-            "orderbook_ratio": ob_ratio,
-            "funding_rate": funding_rate,
-            "latency": 0,
+            "latency": health.get("binance_latency", 0),
         }
-    except Exception:
+    except Exception as e:
+        logger.error("get_stats_error", error=str(e))
         return {
             "signals_24h": 0, "win_rate": 0.0, "profit_factor": 0.0, "avg_r": 0.0,
             "best_zone": "NONE", "best_tf": "1M", "liq_boosts": 0,
-            "orderbook_ratio": 0.0, "funding_rate": 0.0, "latency": 0,
+            "latency": 0,
         }

@@ -1,19 +1,12 @@
 import { useState, useEffect } from 'react';
-
-interface SystemStatus {
-  binance_connected: boolean;
-  bybit_connected: boolean;
-  mempool_connected: boolean;
-  last_signal_ago: string;
-  mode: string;
-  signals_24h: number;
-  global: string; // 'ACTIVE' | 'DATA_STARVED' | 'DISCONNECTED'
-}
+import { SystemStatus } from '@/types';
 
 const DEFAULT_STATUS: SystemStatus = {
   binance_connected: false,
   bybit_connected: false,
   mempool_connected: false,
+  binance_latency: 0,
+  bybit_latency: 0,
   last_signal_ago: 'N/A',
   mode: 'HUNTER',
   signals_24h: 0,
@@ -43,6 +36,8 @@ export function useSystemStatus(): SystemStatus {
               binance_connected: !!p.binance_connected,
               bybit_connected: !!p.bybit_connected,
               mempool_connected: !!p.mempool_connected,
+              binance_latency: p.binance_latency ?? 0,
+              bybit_latency: p.bybit_latency ?? 0,
               last_signal_ago: p.last_signal_ago ?? 'N/A',
               mode: p.mode ?? 'HUNTER',
               signals_24h: p.signals_24h ?? 0,
