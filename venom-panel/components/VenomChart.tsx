@@ -53,7 +53,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         bottomLineColor: color,
         bottomFillColor1: color + '20',
         bottomFillColor2: color + '05',
-        lineWidth: 0,
+        lineWidth: 1,
       });
       return series;
     };
