@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
+from ta.momentum import RSIIndicator, StochasticOscillator
 from typing import List, Tuple
 from ..models.market_data import Candle
 from ..models.enums import DivergenceType
@@ -21,18 +21,16 @@ class DivergenceDetector:
         ])
         
         # RSI-14
-        df['rsi'] = ta.rsi(df['close'], length=self.rsi_period)
+        rsi_ind = RSIIndicator(close=df['close'], window=self.rsi_period)
+        df['rsi'] = rsi_ind.rsi()
         
         # Stochastic %K-14
-        stoch = ta.stoch(df['high'], df['low'], df['close'], k=self.stoch_period, d=3, smooth_k=3)
-        if stoch is not None and len(stoch.columns) > 0:
-            df['stoch_k'] = stoch[stoch.columns[0]]
-        else:
-            df['stoch_k'] = np.nan
+        stoch_ind = StochasticOscillator(high=df['high'], low=df['low'], close=df['close'], window=self.stoch_period, smooth_window=3)
+        df['stoch_k'] = stoch_ind.stoch()
 
         # Need at least previous swing and current
         if df['rsi'].isna().any() or df['stoch_k'].isna().any():
-            if df.head(-1)['rsi'].isna().any(): # Only tolerate na at very beginning
+            if df.head(-1)['rsi'].isna().any():
                 df.fillna(method='bfill', inplace=True)
             
         p1_c = df['close'].iloc[-10]
