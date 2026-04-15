@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createChart, ColorType } from "lightweight-charts";
+import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
 
 export function VenomChart({ liveData }: { liveData?: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
+  const fibSeriesRef = useRef<any>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -13,15 +14,23 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: 'rgba(255, 255, 255, 0.5)',
+        textColor: '#d1d4dc',
+        fontFamily: 'JetBrains Mono',
       },
       grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+        vertLines: { color: 'rgba(255,255,255,0.05)' },
+        horzLines: { color: 'rgba(255,255,255,0.05)' },
       },
-      crosshair: { mode: 1 },
-      rightPriceScale: { borderColor: 'rgba(255, 255, 255, 0.1)' },
-      timeScale: { borderColor: 'rgba(255, 255, 255, 0.1)', timeVisible: true },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: '#00FF41',
+          width: 1,
+          style: 2, // dashed
+        },
+      },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
+      timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true },
     });
 
     const candlestickSeries = chart.addCandlestickSeries({
@@ -33,6 +42,24 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     });
 
     seriesRef.current = candlestickSeries;
+
+    // Add Fibonacci zone shading as background series
+    const addFibZone = (from: number, to: number, color: string) => {
+      const series = chart.addBaselineSeries({
+        baseValue: { type: 'price', price: (from + to) / 2 },
+        topLineColor: color,
+        topFillColor1: color + '20', // 12% opacity
+        topFillColor2: color + '05', // 2% opacity
+        bottomLineColor: color,
+        bottomFillColor1: color + '20',
+        bottomFillColor2: color + '05',
+        lineWidth: 0,
+      });
+      return series;
+    };
+    
+    // Example: static pocket shading at 65000 - 64000 (dynamic in full integration)
+    fibSeriesRef.current = addFibZone(64000, 65000, '#00FF41');
 
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
@@ -49,6 +76,8 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   useEffect(() => {
     if (liveData && seriesRef.current && liveData.stream?.includes('kline')) {
       const k = liveData.data.k;
+      // Also update fib zone if you passed it down...
+      
       seriesRef.current.update({
         time: k.t / 1000,
         open: parseFloat(k.o),
@@ -56,14 +85,20 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         low: parseFloat(k.l),
         close: parseFloat(k.c),
       });
+      
+      // Keep fib baseline trailing along with same timestamp, dummy value
+      if (fibSeriesRef.current) {
+        fibSeriesRef.current.update({
+           time: k.t / 1000,
+           value: 64500
+        });
+      }
     }
   }, [liveData]);
 
   return (
-    <div className="glass-panel relative flex-1 h-[60vh] overflow-hidden p-1">
-      {/* Liquidation heatmap overlay hook point */}
-      <div className="absolute inset-0 pointer-events-none z-10 transition-colors duration-300" id="liquidation-overlay" />
-      <div ref={chartContainerRef} className="w-full h-full" />
+    <div className="w-full h-full relative" id="chart-container">
+      <div ref={chartContainerRef} className="absolute inset-0" />
     </div>
   );
 }

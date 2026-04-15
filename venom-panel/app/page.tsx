@@ -6,49 +6,61 @@ import dynamic from "next/dynamic";
 import { ControlDeck } from "@/components/ControlDeck";
 import { VenomFeed } from "@/components/VenomFeed";
 import { VenomStats } from "@/components/VenomStats";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import { useMarketData } from "@/hooks/useMarketData";
+import { useSystemStatus } from "@/hooks/useSystemStatus";
+import { useState, useEffect } from "react";
+import { useWebSocket } from "@/hooks/useWebSocket"; // Assuming existing hook provides live signals
 import { useSignals } from "@/hooks/useSignals";
 
 const VenomChart = dynamic(() => import("@/components/VenomChart"), { ssr: false });
 
-export default function Home() {
+export default function VenomPanel() {
+  const status = useSystemStatus();
   const { data: liveData } = useWebSocket();
-  const marketData = useMarketData();
-  const { signals } = useSignals();
+  const { signals: initialSignals } = useSignals();
+  const [signals, setLocalSignals] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (initialSignals && initialSignals.length > 0) {
+      setLocalSignals(initialSignals);
+    }
+  }, [initialSignals]);
+
+  useEffect(() => {
+    if (!liveData) return;
+    if (liveData.type === 'signal') {
+      setLocalSignals(prev => [liveData.data, ...prev].slice(0, 50));
+    }
+  }, [liveData]);
 
   return (
-    <main className="min-h-screen pt-16 flex flex-col bg-[#050505]">
-      <Header stats={marketData} />
+    <div className="venom-container">
+      <Header />
       
-      {/* Dynamic Status Banner */}
-      <div className={`text-center text-[10px] font-mono py-1 border-b transition-colors duration-500 ${marketData.connected ? 'bg-venom/10 text-venom border-venom/20' : 'bg-alert/10 text-alert border-alert/20'}`}>
-        {marketData.connected 
-          ? `LIVE DATA FEED ACTIVE — ${process.env.NEXT_PUBLIC_WS_URL}` 
-          : `DISCONNECTED — ATTEMPTING RECONNECT TO ${process.env.NEXT_PUBLIC_WS_URL || 'BACKEND'}`}
-      </div>
+      {status === 'DATA_STARVED' && (
+        <div className="col-span-full text-center bg-alert-red/20 text-alert-red py-2 font-mono text-sm border-y border-alert-red/30">
+          LIVE DATA UNAVAILABLE — SIGNALS PAUSED
+        </div>
+      )}
 
-      <div className="flex-1 p-4 lg:p-6 flex flex-col xl:flex-row gap-6 overflow-hidden">
-        {/* Left Column - Main Viewport */}
-        <div className="flex-[3] flex flex-col gap-6 min-h-0">
+      <main className="venom-main">
+        <section className="chart-section glass-panel flex flex-col p-4 w-full h-full">
           <VenomChart liveData={liveData} />
-          <div className="h-1/3 min-h-[250px]">
-            <ControlDeck />
-          </div>
-        </div>
+        </section>
+        
+        <section className="controls-section glass-panel flex flex-col">
+          <ControlDeck />
+        </section>
 
-        {/* Right Column - Intelligence Feed */}
-        <div className="flex-1 flex flex-col gap-6 min-w-[380px] min-h-0">
-          <div className="flex-none">
-            <VenomStats stats={marketData} />
-          </div>
-          <div className="flex-1 min-h-0">
-            <VenomFeed signals={signals} />
-          </div>
-        </div>
-      </div>
-
-      <FooterStatus connected={marketData.connected} latency={marketData.latency} />
-    </main>
+        <section className="stats-section glass-panel flex flex-col p-4">
+          <VenomStats />
+        </section>
+        
+        <section className="feed-section glass-panel flex flex-col">
+          <VenomFeed signals={signals} />
+        </section>
+      </main>
+      
+      <FooterStatus />
+    </div>
   );
 }

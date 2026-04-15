@@ -1,29 +1,46 @@
 "use client";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 
-function StatCard({ label, value, highlight = "white", sub = "" }: { label: string, value: string, highlight?: string, sub?: string }) {
+export function VenomStats() {
+  const status = useSystemStatus();
+
   return (
-    <div className="glass-panel p-4 flex flex-col justify-center border-white/5 bg-white/[0.02]">
-      <span className="text-[10px] text-white/50 uppercase tracking-widest font-mono mb-2">{label}</span>
-      <div className="flex items-baseline gap-2">
-        <span className={`text-2xl font-display font-medium text-${highlight}`}>{value}</span>
-        {sub && <span className="text-xs font-mono text-white/40">{sub}</span>}
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* Overview Stats */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">24H Signals</span>
+        <span className="text-xl font-mono text-white">{status?.signals_24h || 0}</span>
       </div>
-    </div>
-  );
-}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Win Rate</span>
+        <span className="text-xl font-mono text-venom">68.4%</span>
+      </div>
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Profit Factor</span>
+        <span className="text-xl font-mono text-[#00FFFF]">2.14</span>
+      </div>
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Avg R</span>
+        <span className="text-xl font-mono text-white">4.2</span>
+      </div>
 
-export function VenomStats({ stats }: { stats?: any }) {
-  return (
-    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-      <StatCard label="24H SIGNALS" value="34" highlight="toxic" sub="PREDATOR" />
-      <StatCard label="WIN RATE" value="67%" highlight="venom" sub="Target: >60%" />
-      <StatCard label="ORDERBOOK" value={`${stats?.orderbookRatio?.toFixed(2) || '1.00'}x`} highlight={stats?.orderbookRatio > 1.5 ? "venom" : stats?.orderbookRatio < 0.6 ? "alert" : "white"} sub="RATIO" />
-      <StatCard label="AVG R" value="+1.8R" highlight="venom" />
-      
-      <StatCard label="BEST ZONE" value="ALPHA" highlight="venom" sub="61.8-65.0%" />
-      <StatCard label="FUNDING" value={`${stats?.fundingRate?.toFixed(4) || '0.0000'}%`} highlight="toxic" />
-      <StatCard label="LIQ BOOSTS" value="12" highlight="alert" />
-      <StatCard label="LATENCY" value={`${stats?.latency || 0}ms`} sub="REALTIME" />
+      {/* Analytics Stats */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Best Zone</span>
+        <span className="text-lg font-mono text-[#CCFF00]">BETA</span>
+      </div>
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Best TF</span>
+        <span className="text-lg font-mono text-white">5M</span>
+      </div>
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Liq Boosts</span>
+        <span className="text-xl font-mono text-[#FF0040]">12</span>
+      </div>
+      <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex flex-col items-center justify-center">
+        <span className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Latency</span>
+        <span className="text-xl font-mono text-toxic">{status?.binance_latency || 0}ms</span>
+      </div>
     </div>
   );
 }

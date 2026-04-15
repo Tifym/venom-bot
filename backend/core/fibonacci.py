@@ -12,15 +12,13 @@ class FibonacciPocket:
         VenomZone.OMEGA: (0.850, 0.886)
     }
 
-    def __init__(self, lookback: int = 50, deviation: float = 0.008):
-        self.lookback = lookback
-        self.deviation = deviation # 0.8% minimum for swing
-        self.swings: List[Tuple[float, float, str]] = [] # price, timestamp, type (HIGH/LOW)
-        self.current_high = -math.inf
-        self.current_low = math.inf
-        self.pockets = {}
+    def __init__(self, deviation: float = 0.008):
+        self.deviation = deviation # 0.8% deviation
+        self.swings: List[Tuple[float, float, str]] = []
+        self.pockets: Dict[VenomZone, Tuple[float, float]] = {}
 
     def calculate_zig_zag(self, candles: List[Candle]) -> List[Tuple[float, float, str]]:
+        # Need lookback of 50 implicitly handled by candles list passed here
         if not candles:
             return []
             
@@ -31,21 +29,21 @@ class FibonacciPocket:
         for i in range(1, len(candles)):
             c = candles[i]
             
-            # Upward move
+            # Upward deviation
             if c.high > last_extreme_price * (1 + self.deviation):
                 if last_swing_type != 'HIGH':
                     swings.append((last_extreme_price, candles[i-1].timestamp.timestamp(), 'LOW'))
                 last_swing_type = 'HIGH'
                 last_extreme_price = c.high
                 
-            # Downward move
+            # Downward deviation
             elif c.low < last_extreme_price * (1 - self.deviation):
                 if last_swing_type != 'LOW':
                     swings.append((last_extreme_price, candles[i-1].timestamp.timestamp(), 'HIGH'))
                 last_swing_type = 'LOW'
                 last_extreme_price = c.low
                 
-        self.swings = swings[-3:] # Keep last 3 significant swings
+        self.swings = swings[-3:] # Keep recent 3 swings
         return self.swings
 
     def calculate_pockets(self, swings: List[Tuple[float, float, str]]) -> Dict[VenomZone, Tuple[float, float]]:
@@ -61,11 +59,9 @@ class FibonacciPocket:
 
         for zone, (lower_fib, upper_fib) in self.FIB_LEVELS.items():
             if is_uptrend:
-                # Retracement down
                 p_high = last_swing[0] - (swing_range * lower_fib)
                 p_low = last_swing[0] - (swing_range * upper_fib)
             else:
-                # Retracement up
                 p_low = last_swing[0] + (swing_range * lower_fib)
                 p_high = last_swing[0] + (swing_range * upper_fib)
             

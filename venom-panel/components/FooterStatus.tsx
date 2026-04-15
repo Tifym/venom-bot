@@ -1,40 +1,32 @@
 "use client";
 
-import { CheckCircle2, AlertTriangle, XCircle, Clock } from "lucide-react";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 
-export function FooterStatus({ connected, latency }: { connected: boolean, latency: number }) {
+export function FooterStatus({ connected, latency }: { connected?: boolean, latency?: number }) {
+  const status = useSystemStatus();
+  
+  const b_stat = status?.binance_connected;
+  const by_stat = status?.bybit_connected;
+  const m_stat = status?.mempool_connected;
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-10 glass-panel border-x-0 border-b-0 rounded-none z-50 flex items-center justify-between px-6 text-xs font-mono text-white/50 bg-black/80">
-      
-      <div className="flex gap-6 items-center">
-        <div className="flex items-center gap-1.5 hover:text-white transition-colors cursor-default">
-          {connected ? (
-            <>
-              <CheckCircle2 size={12} className="text-venom" />
-              <span>Binance WS: {latency}ms</span>
-            </>
-          ) : (
-            <>
-              <XCircle size={12} className="text-alert" />
-              <span>Binance WS: DISCONNECTED</span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 hover:text-white transition-colors cursor-default">
-          <CheckCircle2 size={12} className={connected ? "text-venom" : "text-white/20"} />
-          <span>Mempool: {connected ? 'Active' : 'Standby'}</span>
-        </div>
-        <div className="flex items-center gap-1.5 hover:text-white transition-colors cursor-default">
-          <CheckCircle2 size={12} className={connected ? "text-venom" : "text-white/20"} />
-          <span>DB: Sync</span>
-        </div>
+    <div className="h-8 glass-panel border-x-0 border-b-0 rounded-none z-50 flex items-center justify-between px-6 text-[10px] font-mono text-white/50 tracking-widest uppercase">
+      <div className="flex gap-6">
+        <span className="flex items-center gap-2">
+          Binance: <span className={`w-2 h-2 rounded-full ${b_stat ? 'bg-venom chart-glow' : 'bg-red-500'}`} />
+        </span>
+        <span className="flex items-center gap-2">
+          Bybit: <span className={`w-2 h-2 rounded-full ${by_stat ? 'bg-venom chart-glow' : 'bg-red-500'}`} />
+        </span>
+        <span className="flex items-center gap-2">
+          Mempool: <span className={`w-2 h-2 rounded-full ${m_stat ? 'bg-venom chart-glow' : 'bg-red-500'}`} />
+        </span>
       </div>
 
-      <div className="flex gap-6 items-center">
-        <div className="flex items-center gap-1.5">
-          <Clock size={12} />
-          <span>v1.0.0-venom</span>
-        </div>
+      <div className="flex gap-6">
+        <span>Last Signal: {status?.last_signal_ago ?? "None"}</span>
+        <span>Next Funding: 4h 32m</span>
+        <span>Uptime: 99.9%</span>
       </div>
     </div>
   );

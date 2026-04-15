@@ -1,33 +1,37 @@
 "use client";
+import { useState } from "react";
 
 export function ZoneToggles() {
-  const zones = [
-    { name: "ALPHA", range: "0.618—0.650", on: true, priority: "HIGH", color: "bg-venom text-black" },
-    { name: "BETA", range: "0.500—0.618", on: true, priority: "MED", color: "bg-toxic text-black" },
-    { name: "GAMMA", range: "0.382—0.500", on: true, priority: "LOW", color: "bg-[#FF9500] text-black" },
-    { name: "DELTA", range: "0.786—0.850", on: false, priority: "LOW", color: "bg-[#BF5AF2] text-white" },
-    { name: "OMEGA", range: "0.850—0.886", on: false, priority: "LOW", color: "bg-alert text-white" },
-  ];
+  const [zones, setZones] = useState({
+    Alpha: true,
+    Beta: true,
+    Gamma: false,
+    Delta: false,
+    Omega: false
+  });
+
+  const colors = {
+    Alpha: "bg-venom",
+    Beta: "bg-[#CCFF00]",
+    Gamma: "bg-[#FFA500]",
+    Delta: "bg-[#800080]",
+    Omega: "bg-[#FF0040]"
+  };
+
+  const toggle = (z: keyof typeof zones) => setZones(p => ({ ...p, [z]: !p[z] }));
 
   return (
     <div className="flex flex-col gap-4">
-      <h4 className="font-mono text-xs text-white/50 border-b border-white/10 pb-2 mb-2">┌─ POCKET ZONES ──────────</h4>
-      <div className="space-y-3">
-        {zones.map((z) => (
-          <div key={z.name} className="flex items-center justify-between font-mono text-sm group cursor-pointer">
-            <div className="flex items-center gap-3">
-              <span className={`w-16 font-bold ${z.on ? "text-white" : "text-white/30"}`}>{z.name}</span>
-              <span className="text-white/40 text-xs">[{z.range}]</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-white/40 w-24">Priority: {z.priority}</span>
-              <button className={`px-2 py-0.5 rounded text-xs transition-all ${z.on ? z.color : 'bg-white/5 text-white/30'}`}>
-                {z.on ? 'ON 🟢' : 'OFF ⚪'}
-              </button>
+      <h4 className="text-xs text-white/50 font-mono tracking-widest uppercase border-b border-white/10 pb-2">Active Zones</h4>
+      <div className="flex flex-col gap-3">
+        {(Object.keys(zones) as Array<keyof typeof zones>).map(z => (
+          <div key={z} className="flex justify-between items-center cursor-pointer" onClick={() => toggle(z)}>
+            <span className={`text-sm font-mono ${zones[z] ? 'text-white' : 'text-white/30'}`}>{z} Pocket</span>
+            <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-1 ${zones[z] ? colors[z] : 'bg-white/10'}`}>
+              <div className={`w-3 h-3 rounded-full bg-black transition-transform ${zones[z] ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
           </div>
         ))}
-        <button className="text-xs font-mono text-[#00FFFF] hover:underline mt-2 opacity-80">+ Add Custom Zone</button>
       </div>
     </div>
   );

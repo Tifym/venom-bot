@@ -11,8 +11,9 @@ class LiquidationMonitor:
 
     def add_liquidation(self, side: str, price: float, qty: float):
         now = time.time()
+        # side 'SELL' on Binance forceOrder usually indicates losing long
         self.liquidations.append({
-            'side': side,
+            'side': side.upper(),
             'amount_usd': price * qty,
             'timestamp': now
         })
@@ -21,34 +22,30 @@ class LiquidationMonitor:
 
     def _cleanup(self):
         now = time.time()
-        self.liquidations = [liq for liq in self.liquidations if now - liq['timestamp'] <= self.window_seconds]
+        self.liquidations = [l for l in self.liquidations if now - l['timestamp'] <= self.window_seconds]
 
     def _evaluate(self):
-        long_liq = sum(liq['amount_usd'] for liq in self.liquidations if liq['side'].upper() == "BUY") # Maker bought force sell
-        short_liq = sum(liq['amount_usd'] for liq in self.liquidations if liq['side'].upper() == "SELL") # Maker sold force buy
+        long_liq = sum(l['amount_usd'] for l in self.liquidations if l['side'] == "SELL")
+        short_liq = sum(l['amount_usd'] for l in self.liquidations if l['side'] == "BUY")
         
-        # We need to correctly align side parsing based on Binance mapping, but generally:
-        # Binance 'SELL' in forceOrder means long was liquidated
-        # Wait, if forceOrder side = 'SELL', it's a forced sell of a long position.
-        
-        if long_liq >= self.threshold_usd:
+        if long_liq > self.threshold_usd:
             self._trigger_cascade("LONG", long_liq)
-            self.liquidations = [liq for liq in self.liquidations if liq['side'].upper() != "SELL"]
-            
-        elif short_liq >= self.threshold_usd:
+            self.liquidations = [l for l in self.liquidations if l['side'] != "SELL"]
+        elif short_liq > self.threshold_usd:
             self._trigger_cascade("SHORT", short_liq)
-            self.liquidations = [liq for liq in self.liquidations if liq['side'].upper() != "BUY"]
+            self.liquidations = [l for l in self.liquidations if l['side'] != "BUY"]
 
     def _trigger_cascade(self, side_rekt: str, amount: float):
         if self.callback:
             asyncio.create_task(self.callback(side_rekt, amount))
 
     def get_boost(self, direction: str) -> int:
-        long_liq = sum(liq['amount_usd'] for liq in self.liquidations if liq['side'].upper() == "SELL")
-        short_liq = sum(liq['amount_usd'] for liq in self.liquidations if liq['side'].upper() == "BUY")
+        long_liq = sum(l['amount_usd'] for l in self.liquidations if l['side'] == "SELL")
+        short_liq = sum(l['amount_usd'] for l in self.liquidations if l['side'] == "BUY")
 
-        if long_liq >= self.threshold_usd and direction == "LONG":
+        # Opposes liquidation direction -> long gets boost from shorts dying, short gets boost from longs dying
+        if direction == "LONG" and short_liq > self.threshold_usd:
             return 10
-        elif short_liq >= self.threshold_usd and direction == "SHORT":
+        if direction == "SHORT" and long_liq > self.threshold_usd:
             return 10
         return 0

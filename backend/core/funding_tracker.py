@@ -10,37 +10,22 @@ class FundingTracker:
         self.next_funding_time = next_time
 
     def evaluate_signal_alignment(self, direction: str) -> Tuple[int, float]:
-        """
-        Evaluates funding rate alignment based on prompt logic.
-        Requires checking if short pays long, etc.
-        """
         score = 0
         rate = self.current_funding_rate
+        abs_rate = abs(rate) * 100 # converting to percentage
         
-        # Funding rate positive = longs pay shorts. Negative = shorts pay longs.
-        
-        # Extreme: |funding| >0.015% = 15 pts
-        # Strong: |funding| 0.01-0.015% = 12 pts
-        # Moderate: |funding| 0.005-0.01% = 8 pts
-        # Neutral: < 0.005 = 0
-        
-        abs_rate = abs(rate) * 100 # Parse float standard to percentage (e.g., 0.00015 -> 0.015%)
-
-        if abs_rate > 0.015:
+        # User defined: >0.01% = 15pts
+        if abs_rate > 0.01:
             base_score = 15
-        elif 0.01 <= abs_rate <= 0.015:
-            base_score = 12
-        elif 0.005 <= abs_rate < 0.01:
-            base_score = 8
+        elif abs_rate > 0.005:
+            base_score = 10
         else:
             base_score = 0
-        
+            
         if base_score > 0:
-            if direction == "LONG" and rate < 0:
-                # Shorts pay longs - very good for long signal
+            if direction == "LONG" and rate < 0: # Shorts paying longs
                 score = base_score
-            elif direction == "SHORT" and rate > 0:
-                # Longs pay shorts - very good for short signal
+            elif direction == "SHORT" and rate > 0: # Longs paying shorts
                 score = base_score
                 
         return score, rate
