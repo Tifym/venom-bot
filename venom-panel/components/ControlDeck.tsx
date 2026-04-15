@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Save, RotateCcw, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, RotateCcw, Zap, BarChart2 } from "lucide-react";
 import { PresetSelector } from "./PresetSelector";
 import { ZoneToggles } from "./ZoneToggles";
 import { WeightSliders } from "./WeightSliders";
