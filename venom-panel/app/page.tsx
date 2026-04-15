@@ -45,11 +45,11 @@ export default function VenomPanel() {
       <main className="venom-main">
         {/* Left Stack: Chart & ControlDeck */}
         <div className="left-stack">
-          <section className="chart-section glass-panel flex flex-col p-4 w-full h-[600px]">
+          <section id="v-chart" className="chart-section glass-panel flex flex-col p-4 w-full h-[600px]">
             <VenomChart liveData={liveData} />
           </section>
           
-          <section className="glass-panel w-full">
+          <section id="v-control" className="glass-panel w-full">
             <ControlDeck />
           </section>
         </div>

@@ -13,15 +13,21 @@ const PRESETS = ["SILENT", "HUNTER", "PREDATOR", "RAMPAGE", "CUSTOM"];
 export function ControlDeck() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [config, setConfig] = useState<any>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const { data: wsData } = useWebSocket();
 
-  // Load config from backend on mount
+  // Load config and profiles on mount
   useEffect(() => {
     fetch("/api/config")
       .then(res => res.json())
       .then(data => setConfig(data))
+      .catch(console.error);
+
+    fetch("/api/profiles")
+      .then(res => res.json())
+      .then(data => setProfiles(data))
       .catch(console.error);
   }, []);
 
@@ -53,6 +59,7 @@ export function ControlDeck() {
     if (!config) return;
     setSaving(true);
     try {
+      // 1. Save general active config
       const res = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,6 +67,21 @@ export function ControlDeck() {
       });
       const data = await res.json();
       if (data.new_config) setConfig(data.new_config);
+      
+      // 2. If it's a CUSTOM mode, also save it as a named profile
+      if (config.mode?.toUpperCase() === "CUSTOM" && config.preset?.custom_options?.name) {
+        const pRes = await fetch("/api/profiles/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: config.preset.custom_options.name,
+            config: config.preset
+          })
+        });
+        const pData = await pRes.json();
+        if (pData.profiles) setProfiles(pData.profiles);
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
@@ -67,6 +89,24 @@ export function ControlDeck() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDeleteProfile = async (name: string) => {
+    try {
+      const res = await fetch(`/api/profiles/${name}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.profiles) setProfiles(data.profiles);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleLoadProfile = (profile: any) => {
+    setConfig({
+      ...config,
+      mode: "CUSTOM",
+      preset: profile.config
+    });
   };
 
   const handleReset = async () => {
@@ -256,6 +296,31 @@ export function ControlDeck() {
                   })}
                 </div>
               </div>
+
+              {/* Saved Profiles Gallery */}
+              {profiles.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-white/5">
+                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Saved Custom Profiles</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {profiles.map(p => (
+                      <div key={p.name} className="flex items-center bg-black/40 border border-white/10 rounded overflow-hidden">
+                        <button
+                          onClick={() => handleLoadProfile(p)}
+                          className="px-3 py-1.5 text-[10px] font-mono text-venom-green hover:bg-venom-green/10 transition-colors"
+                        >
+                          {p.name}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProfile(p.name)}
+                          className="px-2 py-1.5 text-[10px] text-red-500/50 hover:text-red-500 hover:bg-red-500/10 transition-colors border-l border-white/5"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -13,6 +13,7 @@ logger = structlog.get_logger()
 router = APIRouter()
 
 REDIS_CONFIG_KEY = "venom:config"
+REDIS_PROFILES_KEY = "venom:profiles"
 
 def _build_config_dict() -> dict:
     """Build the full config dict from the current engine state."""
@@ -130,6 +131,51 @@ async def update_config(payload: Dict[str, Any]):
     })
 
     return {"status": "success", "new_config": new_config}
+
+@router.get("/profiles")
+async def get_profiles():
+    """List all saved custom profiles."""
+    try:
+        raw = await redis_client.get(REDIS_PROFILES_KEY)
+        return json.loads(raw) if raw else []
+    except:
+        return []
+
+@router.post("/profiles/save")
+async def save_profile(profile: Dict[str, Any]):
+    """Save current custom config as a named profile."""
+    try:
+        raw = await redis_client.get(REDIS_PROFILES_KEY)
+        profiles = json.loads(raw) if raw else []
+        
+        # Prevent duplicates by name
+        name = profile.get("name", "UNNAMED")
+        profiles = [p for p in profiles if p.get("name") != name]
+        profiles.append(profile)
+        
+        await redis_client.set(REDIS_PROFILES_KEY, json.dumps(profiles))
+        return {"status": "success", "profiles": profiles}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/profiles/{name}")
+async def delete_profile(name: str):
+    """Remove a saved profile by name."""
+    try:
+        raw = await redis_client.get(REDIS_PROFILES_KEY)
+        if not raw: return {"status": "not_found"}
+        
+        profiles = json.loads(raw)
+        original_len = len(profiles)
+        profiles = [p for p in profiles if p.get("name") != name]
+        
+        if len(profiles) == original_len:
+            return {"status": "not_found"}
+            
+        await redis_client.set(REDIS_PROFILES_KEY, json.dumps(profiles))
+        return {"status": "success", "profiles": profiles}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @router.get("/signals")
 async def get_signals(limit: int = 20):

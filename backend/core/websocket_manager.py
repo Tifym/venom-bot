@@ -9,9 +9,10 @@ from ..database.redis_client import redis_client
 logger = structlog.get_logger()
 
 class WebSocketConnection:
-    def __init__(self, name: str, url: str):
+    def __init__(self, name: str, url: str, subscription_msg: Optional[dict] = None):
         self.name = name
         self.url = url
+        self.subscription_msg = subscription_msg
         self.ws = None
         self.state = "CONNECTING"
         self.last_msg_time = 0.0
@@ -59,6 +60,11 @@ class WebSocketConnection:
                 async with websockets.connect(self.url, ping_interval=20, ping_timeout=10) as ws:
                     self.ws = ws
                     self.set_state("CONNECTED")
+                    
+                    if self.subscription_msg:
+                        await ws.send(json.dumps(self.subscription_msg))
+                        logger.info(f"{self.name}_subscription_sent")
+
                     self.failures = 0
                     self.reconnect_delay = 1
                     
@@ -85,8 +91,8 @@ class MultiWebSocketManager:
         self.connections: Dict[str, WebSocketConnection] = {}
         self.global_state = "OK"
 
-    def add_source(self, name: str, url: str):
-        self.connections[name] = WebSocketConnection(name, url)
+    def add_source(self, name: str, url: str, subscription_msg: Optional[dict] = None):
+        self.connections[name] = WebSocketConnection(name, url, subscription_msg)
 
     def add_callback(self, name: str, cb: Callable):
         if name in self.connections:

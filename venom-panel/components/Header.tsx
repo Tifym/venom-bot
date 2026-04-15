@@ -50,12 +50,16 @@ export function Header() {
 
       <div className="flex gap-4">
         <button 
+          onClick={() => document.getElementById('v-chart')?.scrollIntoView({ behavior: 'smooth' })}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10"
+          title="Go to Chart"
         >
           <BarChart2 size={20} className="text-white/70 hover:text-toxic transition-colors" />
         </button>
         <button 
+          onClick={() => document.getElementById('v-control')?.scrollIntoView({ behavior: 'smooth' })}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10"
+          title="Open Settings"
         >
           <Settings size={20} className="text-white/70 hover:text-white transition-colors" />
         </button>

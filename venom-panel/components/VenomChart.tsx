@@ -1,12 +1,13 @@
 "use client";
-
 import { useEffect, useRef } from "react";
 import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
 
 export function VenomChart({ liveData }: { liveData?: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
-  const fibSeriesRef = useRef<any>(null);
+  const volumeRef = useRef<any>(null);
+  const chartRef = useRef<any>(null);
+  const priceLinesRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -23,11 +24,7 @@ export function VenomChart({ liveData }: { liveData?: any }) {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: {
-          color: '#00FF41',
-          width: 1,
-          style: 2, // dashed
-        },
+        vertLine: { color: '#00FF41', width: 1, style: 2 },
       },
       rightPriceScale: { borderColor: 'rgba(255,255,255,0.1)' },
       timeScale: { borderColor: 'rgba(255,255,255,0.1)', timeVisible: true },
@@ -41,50 +38,41 @@ export function VenomChart({ liveData }: { liveData?: any }) {
       wickDownColor: '#FF0040',
     });
 
-    seriesRef.current = candlestickSeries;
-
-    // Add Fibonacci zone shading as background series
-    const addFibZone = (from: number, to: number, color: string) => {
-      const series = chart.addBaselineSeries({
-        baseValue: { type: 'price', price: (from + to) / 2 },
-        topLineColor: color,
-        topFillColor1: color + '20', // 12% opacity
-        topFillColor2: color + '05', // 2% opacity
-        bottomLineColor: color,
-        bottomFillColor1: color + '20',
-        bottomFillColor2: color + '05',
-        lineWidth: 1,
-      });
-      return series;
-    };
+    const volumeSeries = chart.addHistogramSeries({
+      color: '#26a69a',
+      priceFormat: { type: 'volume' },
+      priceScaleId: '', // overlay
+    });
     
-    // Example: static pocket shading at 65000 - 64000 (dynamic in full integration)
-    fibSeriesRef.current = addFibZone(64000, 65000, '#00FF41');
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
+    seriesRef.current = candlestickSeries;
+    volumeRef.current = volumeSeries;
+    chartRef.current = chart;
 
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
     };
 
     window.addEventListener('resize', handleResize);
-
     return () => {
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
   }, []);
 
+  // Update logic
   useEffect(() => {
     if (!liveData || !seriesRef.current) return;
-    if (!liveData.stream?.includes('kline')) return;
 
-    const k = liveData.data?.k;
-    if (!k) return;
-
-    // lightweight-charts requires time as integer Unix seconds
-    const time = Math.floor(Number(k.t) / 1000);
-    if (!time || isNaN(time)) return;
-
-    try {
+    // 1. Handle Kline updates
+    if (liveData.stream?.includes('kline')) {
+      const k = liveData.data?.k;
+      if (!k) return;
+      const time = Math.floor(Number(k.t) / 1000);
+      
       seriesRef.current.update({
         time,
         open: parseFloat(k.o),
@@ -93,11 +81,54 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         close: parseFloat(k.c),
       });
 
-      if (fibSeriesRef.current) {
-        fibSeriesRef.current.update({ time, value: parseFloat(k.c) });
-      }
-    } catch (e) {
-      // Silently ignore chart update errors (e.g. out-of-order ticks)
+      volumeRef.current.update({
+        time,
+        value: parseFloat(k.v),
+        color: parseFloat(k.c) >= parseFloat(k.o) ? '#00FF4140' : '#FF004040',
+      });
+    }
+
+    // 2. Handle Signal Markers and Price Lines
+    if (liveData.type === 'signal') {
+      const s = liveData.data;
+      const time = Math.floor(Date.now() / 1000);
+      
+      // Add Marker
+      const currentMarkers = seriesRef.current.getMarkers() || [];
+      seriesRef.current.setMarkers([
+        ...currentMarkers,
+        {
+          time,
+          position: s.direction?.toUpperCase() === 'LONG' ? 'belowBar' : 'aboveBar',
+          color: s.direction?.toUpperCase() === 'LONG' ? '#00FF41' : '#FF0040',
+          shape: s.direction?.toUpperCase() === 'LONG' ? 'arrowUp' : 'arrowDown',
+          text: `${s.direction} @ ${s.entry_low}`,
+        }
+      ].slice(-20)); // Keep last 20 signs
+
+      // Draw TP/SL Lines
+      priceLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
+      priceLinesRef.current = [];
+
+      const levels = [
+        { price: s.tp1, color: '#00FF41', title: 'TP1' },
+        { price: s.tp2, color: '#00FFFF', title: 'TP2' },
+        { price: s.stop_loss, color: '#FF0040', title: 'SL' },
+      ];
+
+      levels.forEach(lvl => {
+        if (lvl.price) {
+          const pl = seriesRef.current.createPriceLine({
+            price: lvl.price,
+            color: lvl.color,
+            lineWidth: 1,
+            lineStyle: 2, // dashed
+            axisLabelVisible: true,
+            title: lvl.title,
+          });
+          priceLinesRef.current.push(pl);
+        }
+      });
     }
   }, [liveData]);
 
