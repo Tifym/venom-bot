@@ -5,19 +5,25 @@ export function useWebSocket() {
   const [connected, setConnected] = useState(false);
   const [latency, setLatency] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<NodeJS.Timeout | null>(null);
 
   const connect = useCallback(() => {
     if (typeof window === 'undefined') return;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.hostname}:8000/ws`;
-    
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
+
+    // Use the same host/protocol as the page - works locally AND through Cloudflare
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
 
     console.log('Connecting to Venom WebSocket:', wsUrl);
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setConnected(true);
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current);
+        reconnectRef.current = null;
+      }
       console.log('Venom WebSocket Connected');
     };
 
@@ -25,23 +31,22 @@ export function useWebSocket() {
       try {
         const message = JSON.parse(event.data);
         setData(message);
-        
         if (message.timestamp) {
           setLatency(Date.now() - message.timestamp);
         }
       } catch (err) {
-        console.error('WS Message Error:', err);
+        // Ignore malformed messages
       }
     };
 
     ws.onclose = () => {
       setConnected(false);
+      socketRef.current = null;
       console.log('Venom WebSocket Disconnected. Retrying in 3s...');
-      setTimeout(connect, 3000);
+      reconnectRef.current = setTimeout(connect, 3000);
     };
 
-    ws.onerror = (err) => {
-      console.error('WS Error:', err);
+    ws.onerror = () => {
       ws.close();
     };
 
@@ -51,10 +56,9 @@ export function useWebSocket() {
   useEffect(() => {
     connect();
     return () => {
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      socketRef.current?.close();
+      socketRef.current = null;
     };
   }, [connect]);
 

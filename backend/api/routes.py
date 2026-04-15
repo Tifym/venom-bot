@@ -1,46 +1,103 @@
+import json
+import structlog
 from fastapi import APIRouter
 from typing import Dict, Any
 from datetime import datetime
+
 from ..core.state import signal_engine
 from ..models.enums import SignalMode
+from ..config.presets import get_preset
+from ..database.redis_client import redis_client
 
+logger = structlog.get_logger()
 router = APIRouter()
 
-def _get_config_dict():
-    preset = signal_engine.preset
+REDIS_CONFIG_KEY = "venom:config"
+
+def _build_config_dict() -> dict:
+    """Build the full config dict from the current engine state."""
+    p = signal_engine.preset
     base = {
         "mode": signal_engine.mode.name,
         "preset": {
-            "min_score": preset.min_score,
-            "min_tfs": preset.min_tfs,
-            "zones": preset.zones,
-            "cooldown_dir": preset.cooldown_dir,
-            "daily_cap": preset.daily_cap,
-            "atr_filter": preset.atr_filter,
+            "min_score": p.min_score,
+            "min_tfs": p.min_tfs,
+            "zones": p.zones,
+            "cooldown_dir": p.cooldown_dir,
+            "daily_cap": p.daily_cap,
+            "atr_filter": p.atr_filter,
         }
     }
-    if preset.custom_options:
+    if p.custom_options:
         base["preset"]["custom_options"] = {
-            "name": preset.custom_options.name,
-            "bbands_lower": preset.custom_options.bbands_lower,
-            "bbands_upper": preset.custom_options.bbands_upper,
-            "bbands_enabled": preset.custom_options.bbands_enabled,
-            "timeframes": preset.custom_options.timeframes,
-            "custom_fibs": preset.custom_options.custom_fibs,
+            "name": p.custom_options.name,
+            "bbands_lower": p.custom_options.bbands_lower,
+            "bbands_upper": p.custom_options.bbands_upper,
+            "bbands_enabled": p.custom_options.bbands_enabled,
+            "timeframes": p.custom_options.timeframes,
+            "custom_fibs": p.custom_options.custom_fibs,
         }
     return base
 
+async def _save_config():
+    """Persist current config to Redis."""
+    try:
+        await redis_client.set(REDIS_CONFIG_KEY, json.dumps(_build_config_dict()))
+    except Exception as e:
+        logger.error("config_save_failed", error=str(e))
+
+async def load_config_from_redis():
+    """Called on startup to restore persisted config."""
+    try:
+        raw = await redis_client.get(REDIS_CONFIG_KEY)
+        if not raw:
+            return
+        saved = json.loads(raw)
+        mode_str = saved.get("mode", "HUNTER")
+        new_mode = SignalMode[mode_str.upper()]
+        signal_engine.mode = new_mode
+        signal_engine.preset = get_preset(mode_str)
+
+        preset_data = saved.get("preset", {})
+        p = signal_engine.preset
+        if "min_score" in preset_data: p.min_score = preset_data["min_score"]
+        if "zones" in preset_data: p.zones = preset_data["zones"]
+        if "cooldown_dir" in preset_data: p.cooldown_dir = preset_data["cooldown_dir"]
+        if "daily_cap" in preset_data: p.daily_cap = preset_data["daily_cap"]
+        if "atr_filter" in preset_data: p.atr_filter = preset_data["atr_filter"]
+
+        if "custom_options" in preset_data and p.custom_options is not None:
+            c = preset_data["custom_options"]
+            opts = p.custom_options
+            if "name" in c: opts.name = c["name"]
+            if "bbands_enabled" in c: opts.bbands_enabled = c["bbands_enabled"]
+            if "bbands_lower" in c: opts.bbands_lower = float(c["bbands_lower"])
+            if "bbands_upper" in c: opts.bbands_upper = float(c["bbands_upper"])
+            if "timeframes" in c: opts.timeframes = c["timeframes"]
+            if "custom_fibs" in c: opts.custom_fibs = c["custom_fibs"]
+
+        logger.info("config_restored_from_redis", mode=mode_str)
+    except Exception as e:
+        logger.warning("config_restore_failed", error=str(e))
+
 @router.get("/config")
 async def get_config():
-    return _get_config_dict()
+    return _build_config_dict()
 
 @router.post("/config")
 async def update_config(payload: Dict[str, Any]):
+    # Import here to avoid circular import
+    from ..api.websocket import frontend_ws_manager
+
     if "mode" in payload:
         try:
-            signal_engine.mode = SignalMode[payload["mode"].upper()]
-        except Exception:
-            pass
+            new_mode = SignalMode[payload["mode"].upper()]
+            signal_engine.mode = new_mode
+            # Fully reload the preset definition for the new mode
+            signal_engine.preset = get_preset(new_mode.name)
+            logger.info("mode_changed", mode=new_mode.name)
+        except Exception as e:
+            logger.warning("mode_change_failed", error=str(e))
 
     if "preset" in payload:
         preset_data = payload["preset"]
@@ -61,7 +118,18 @@ async def update_config(payload: Dict[str, Any]):
             if "timeframes" in c: opts.timeframes = c["timeframes"]
             if "custom_fibs" in c: opts.custom_fibs = c["custom_fibs"]
 
-    return {"status": "success", "new_config": _get_config_dict()}
+    # Persist to Redis so it survives refreshes
+    await _save_config()
+
+    new_config = _build_config_dict()
+
+    # Broadcast to ALL connected frontends so every tab stays in sync
+    await frontend_ws_manager.broadcast({
+        "type": "config_update",
+        "config": new_config
+    })
+
+    return {"status": "success", "new_config": new_config}
 
 @router.get("/signals")
 async def get_signals(limit: int = 20):
@@ -72,7 +140,7 @@ async def get_signals(limit: int = 20):
                 "id": s.id,
                 "direction": s.direction.value if hasattr(s.direction, 'value') else str(s.direction),
                 "score": s.total_score,
-                "zone": s.zone,  # plain string now
+                "zone": s.zone,
                 "entry_low": s.entry_low,
                 "entry_high": s.entry_high,
                 "stop_loss": s.stop_loss,
@@ -93,7 +161,7 @@ async def get_stats():
 
         zone_counts: Dict[str, int] = {}
         for s in signal_engine.recent_signals:
-            z = s.zone  # plain string
+            z = s.zone
             zone_counts[z] = zone_counts.get(z, 0) + 1
         best_zone = max(zone_counts, key=zone_counts.get) if zone_counts else "NONE"
 
@@ -124,16 +192,9 @@ async def get_stats():
             "funding_rate": funding_rate,
             "latency": 0,
         }
-    except Exception as e:
+    except Exception:
         return {
-            "signals_24h": 0,
-            "win_rate": 0.0,
-            "profit_factor": 0.0,
-            "avg_r": 0.0,
-            "best_zone": "NONE",
-            "best_tf": "1M",
-            "liq_boosts": 0,
-            "orderbook_ratio": 0.0,
-            "funding_rate": 0.0,
-            "latency": 0,
+            "signals_24h": 0, "win_rate": 0.0, "profit_factor": 0.0, "avg_r": 0.0,
+            "best_zone": "NONE", "best_tf": "1M", "liq_boosts": 0,
+            "orderbook_ratio": 0.0, "funding_rate": 0.0, "latency": 0,
         }

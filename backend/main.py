@@ -15,6 +15,7 @@ from .core.telegram_bot import telegram_bot_instance
 from .core.state import signal_engine
 import backend.core.telegram_bot as tb_module
 from .api import routes, websocket as ws_router
+from .api.routes import load_config_from_redis
 
 logger = structlog.get_logger()
 
@@ -149,6 +150,9 @@ async def lifespan(app: FastAPI):
 
     await postgres_client.connect()
     await redis_client.connect()
+
+    # Restore persisted config from Redis
+    await load_config_from_redis()
 
     # CRITICAL: Verify telegram initialization immediately
     await telegram_bot_instance.initialize()

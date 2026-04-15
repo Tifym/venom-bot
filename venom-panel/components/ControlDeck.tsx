@@ -1,16 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Save, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, RotateCcw, Zap } from "lucide-react";
 import { PresetSelector } from "./PresetSelector";
-import { ZoneToggles, ConfigState } from "./ZoneToggles";
+import { ZoneToggles } from "./ZoneToggles";
 import { WeightSliders } from "./WeightSliders";
 import { ThresholdControls } from "./ThresholdControls";
+import { useWebSocket } from "@/hooks/useWebSocket";
+
+const PRESETS = ["SILENT", "HUNTER", "PREDATOR", "RAMPAGE", "CUSTOM"];
 
 export function ControlDeck() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [config, setConfig] = useState<ConfigState | null>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const { data: wsData } = useWebSocket();
 
+  // Load config from backend on mount
   useEffect(() => {
     fetch("/api/config")
       .then(res => res.json())
@@ -18,8 +25,33 @@ export function ControlDeck() {
       .catch(console.error);
   }, []);
 
+  // Sync config when backend broadcasts a config_update (another tab saved, or server restarted with restored config)
+  useEffect(() => {
+    if (!wsData) return;
+    if (wsData.type === "config_update" && wsData.config) {
+      setConfig(wsData.config);
+    }
+  }, [wsData]);
+
+  const handlePresetChange = async (newMode: string) => {
+    // When switching preset, POST to backend which reloads full preset definition
+    // Then backend broadcasts config_update back so we get the fresh params
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: newMode })
+      });
+      const data = await res.json();
+      if (data.new_config) setConfig(data.new_config);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSave = async () => {
     if (!config) return;
+    setSaving(true);
     try {
       const res = await fetch("/api/config", {
         method: "POST",
@@ -27,9 +59,13 @@ export function ControlDeck() {
         body: JSON.stringify(config)
       });
       const data = await res.json();
-      setConfig(data.new_config);
+      if (data.new_config) setConfig(data.new_config);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       console.error(e);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -38,98 +74,217 @@ export function ControlDeck() {
       const res = await fetch("/api/config");
       const data = await res.json();
       setConfig(data);
-    } catch(e) {}
+    } catch (e) {}
   };
 
-  if (!config) return <div className="p-4 text-white/50 text-xs font-mono">LOADING PARAMS...</div>;
+  if (!config) {
+    return (
+      <div className="p-4 flex items-center gap-2 text-white/30 text-xs font-mono">
+        <div className="w-2 h-2 rounded-full bg-venom-green animate-pulse" />
+        LOADING CONFIG...
+      </div>
+    );
+  }
+
+  const isCustom = config.mode?.toUpperCase() === "CUSTOM";
 
   return (
-    <div className={`flex flex-col w-full transition-all duration-300 ${isExpanded ? 'h-full' : ''}`}>
-      
+    <div className="flex flex-col w-full">
+      {/* Header row */}
       <div className="flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-lg tracking-widest text-toxic font-semibold">SIGNAL FORGE</h2>
+          <Zap size={16} className="text-venom-green" />
+          <h2 className="font-mono text-sm tracking-widest text-venom-green font-semibold uppercase">
+            Signal Forge
+          </h2>
+          <span className="text-[10px] font-mono text-white/30 bg-white/5 px-2 py-0.5 rounded">
+            {config.mode}
+          </span>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <PresetSelector config={config} onChange={setConfig} />
-          <button 
-            className="btn-icon text-white/50 hover:text-white transition-colors"
+
+        <div className="flex items-center gap-3">
+          {/* Preset quick-switcher */}
+          <div className="flex gap-1">
+            {PRESETS.map(p => (
+              <button
+                key={p}
+                onClick={() => handlePresetChange(p)}
+                className={`text-[10px] font-mono px-2 py-1 rounded transition-all ${
+                  config.mode === p
+                    ? "bg-venom-green text-black font-bold"
+                    : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {p === "SILENT" ? "SIL" : p === "HUNTER" ? "HNT" : p === "PREDATOR" ? "PRD" : p === "RAMPAGE" ? "RMP" : "CST"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="text-white/40 hover:text-white transition-colors p-1"
             onClick={() => setIsExpanded(!isExpanded)}
-            aria-label={isExpanded ? "Collapse" : "Expand"}
           >
-            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </button>
         </div>
       </div>
 
+      {/* Expanded config panel */}
       {isExpanded && (
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 flex-1 overflow-y-auto w-full">
-          {config.mode.toUpperCase() === "CUSTOM" && (
-            <div className="col-span-full mb-4 p-4 border border-venom/30 bg-venom/5 rounded-lg flex flex-col gap-4">
-              <h3 className="text-sm font-display text-venom tracking-widest font-semibold flex items-center justify-between">
-                CUSTOM SIGNAL BLASTER
+        <div className="p-4 flex flex-col gap-6 w-full overflow-y-auto max-h-[70vh]">
+
+          {/* Custom Signal Blaster panel */}
+          {isCustom && (
+            <div className="p-4 border border-venom-green/20 bg-venom-green/5 rounded-xl flex flex-col gap-4">
+              <h3 className="text-xs font-mono text-venom-green tracking-widest uppercase font-semibold">
+                ⚡ Custom Signal Blaster
               </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Configuration Name</label>
-                  <input type="text" maxLength={15} value={config.preset.custom_options?.name || "BLASTER_V1"}
-                    onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, name: e.target.value} as any}})}
-                    className="bg-black/50 border border-white/10 rounded px-3 py-1 font-mono text-sm text-white focus:outline-none focus:border-venom/50" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Name */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Profile Name</label>
+                  <input
+                    type="text"
+                    maxLength={20}
+                    value={config.preset?.custom_options?.name || "BLASTER_V1"}
+                    onChange={e => setConfig({
+                      ...config,
+                      preset: { ...config.preset, custom_options: { ...config.preset.custom_options, name: e.target.value } }
+                    })}
+                    className="bg-black/60 border border-white/10 rounded px-3 py-1.5 font-mono text-sm text-white focus:outline-none focus:border-venom-green/50 transition-colors"
+                  />
                 </div>
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] text-white/50 uppercase font-mono tracking-widest flex justify-between">
-                    <span>Bollinger Bands</span>
-                    <input type="checkbox" checked={config.preset.custom_options?.bbands_enabled || false}
-                      onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, bbands_enabled: e.target.checked} as any}})}
-                      className="accent-venom" />
+
+                {/* Timeframes */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Timeframes (comma separated)</label>
+                  <input
+                    type="text"
+                    value={(config.preset?.custom_options?.timeframes || ["1m", "5m"]).join(", ")}
+                    onChange={e => setConfig({
+                      ...config,
+                      preset: {
+                        ...config.preset,
+                        custom_options: {
+                          ...config.preset.custom_options,
+                          timeframes: e.target.value.replace(/\s/g, "").split(",").filter(Boolean)
+                        }
+                      }
+                    })}
+                    placeholder="1m, 5m, 15m, 1h"
+                    className="bg-black/60 border border-white/10 rounded px-3 py-1.5 font-mono text-sm text-white focus:outline-none focus:border-venom-green/50 transition-colors"
+                  />
+                </div>
+
+                {/* Bollinger Bands */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest flex justify-between">
+                    Bollinger Bands
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.preset?.custom_options?.bbands_enabled || false}
+                        onChange={e => setConfig({
+                          ...config,
+                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, bbands_enabled: e.target.checked } }
+                        })}
+                        className="accent-venom-green"
+                      />
+                      <span className="text-white/60">{config.preset?.custom_options?.bbands_enabled ? "ON" : "OFF"}</span>
+                    </label>
                   </label>
                   <div className="flex gap-2">
-                    <input type="number" step="0.1" value={config.preset.custom_options?.bbands_lower || 2} placeholder="Lower Dev" 
-                      onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, bbands_lower: parseFloat(e.target.value)} as any}})}
-                      className="w-1/2 bg-black/50 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white" />
-                    <input type="number" step="0.1" value={config.preset.custom_options?.bbands_upper || 2} placeholder="Upper Dev" 
-                      onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, bbands_upper: parseFloat(e.target.value)} as any}})}
-                      className="w-1/2 bg-black/50 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white" />
+                    {["bbands_lower", "bbands_upper"].map(key => (
+                      <input
+                        key={key}
+                        type="number"
+                        step="0.1"
+                        min="0.5"
+                        max="5"
+                        value={config.preset?.custom_options?.[key] ?? 2}
+                        onChange={e => setConfig({
+                          ...config,
+                          preset: { ...config.preset, custom_options: { ...config.preset.custom_options, [key]: parseFloat(e.target.value) } }
+                        })}
+                        placeholder={key === "bbands_lower" ? "Lower σ" : "Upper σ"}
+                        className="w-1/2 bg-black/60 border border-white/10 rounded px-2 py-1.5 font-mono text-xs text-white focus:outline-none focus:border-venom-green/50"
+                      />
+                    ))}
                   </div>
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] text-white/50 uppercase font-mono tracking-widest">Timeframes</label>
-                  <input type="text" value={config.preset.custom_options?.timeframes?.join(", ") || "1m, 5m"}
-                    onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, timeframes: e.target.value.replace(/\s/g, '').split(",")} as any}})}
-                    className="bg-black/50 border border-white/10 rounded px-3 py-1 font-mono text-sm text-white" placeholder="1m, 5m, 1h" />
-                </div>
-
-                {/* Example of dynamic Fibo entry logic for the 'alpha' pocket */}
-                <div className="flex flex-col gap-2 col-span-full md:col-span-1">
-                  <label className="text-[10px] text-white/50 uppercase font-mono tracking-widest text-[#00FF41]">Custom Alpha Pocket</label>
-                  <div className="flex gap-2">
-                    <input type="number" step="0.001" value={config.preset.custom_options?.custom_fibs?.alpha?.[0] || 0.618} placeholder="Lower" 
-                      onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, custom_fibs: {...config.preset.custom_options?.custom_fibs, alpha: [parseFloat(e.target.value), config.preset.custom_options?.custom_fibs?.alpha?.[1] || 0.650]}} as any}})}
-                      className="w-1/2 bg-black/50 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white" />
-                    <input type="number" step="0.001" value={config.preset.custom_options?.custom_fibs?.alpha?.[1] || 0.650} placeholder="Upper" 
-                      onChange={e => setConfig({...config, preset: {...config.preset, custom_options: {...config.preset.custom_options, custom_fibs: {...config.preset.custom_options?.custom_fibs, alpha: [config.preset.custom_options?.custom_fibs?.alpha?.[0] || 0.618, parseFloat(e.target.value)]}} as any}})}
-                      className="w-1/2 bg-black/50 border border-white/10 rounded px-2 py-1 font-mono text-xs text-white" />
-                  </div>
+              {/* Custom Fibonacci Pockets */}
+              <div>
+                <label className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Fibonacci Pockets</label>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-2">
+                  {["alpha", "beta", "gamma", "delta", "omega"].map(zone => {
+                    const fibs = config.preset?.custom_options?.custom_fibs?.[zone];
+                    return (
+                      <div key={zone} className="flex flex-col gap-1">
+                        <span className="text-[9px] font-mono text-venom-green/70 uppercase">{zone}</span>
+                        <div className="flex gap-1">
+                          {[0, 1].map(idx => (
+                            <input
+                              key={idx}
+                              type="number"
+                              step="0.001"
+                              min="0"
+                              max="1"
+                              value={fibs?.[idx] ?? (idx === 0 ? 0.618 : 0.65)}
+                              onChange={e => {
+                                const cur = config.preset?.custom_options?.custom_fibs?.[zone] || [0.618, 0.65];
+                                const next = [...cur];
+                                next[idx] = parseFloat(e.target.value);
+                                setConfig({
+                                  ...config,
+                                  preset: {
+                                    ...config.preset,
+                                    custom_options: {
+                                      ...config.preset.custom_options,
+                                      custom_fibs: { ...config.preset.custom_options?.custom_fibs, [zone]: next }
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full bg-black/60 border border-white/10 rounded px-1.5 py-1 font-mono text-[10px] text-white focus:outline-none focus:border-venom-green/50"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
 
-          <ZoneToggles config={config} onChange={setConfig} />
-          <WeightSliders /> 
-          <ThresholdControls config={config} onChange={setConfig} />
-          
-          <div className="col-span-full flex justify-end gap-4 mt-4 pt-4 border-t border-white/5">
-            <button onClick={handleReset} className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded bg-white/5 hover:bg-white/10 transition-colors">
-              <RotateCcw size={14} /> RESET
+          {/* Standard controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <ZoneToggles config={config} onChange={setConfig} />
+            <ThresholdControls config={config} onChange={setConfig} />
+            <WeightSliders />
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 text-xs font-mono px-4 py-2 rounded bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all"
+            >
+              <RotateCcw size={13} /> RELOAD
             </button>
-            <button onClick={handleSave} className="flex items-center gap-2 text-xs font-mono px-6 py-2 rounded btn-liquid border-none cursor-pointer">
-              <Save size={14} className="relative z-10" /> 
-              <span className="relative z-10">SAVE CONFIG</span>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`flex items-center gap-2 text-xs font-mono px-6 py-2 rounded font-semibold transition-all ${
+                saved
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-venom-green text-black hover:bg-venom-green/90"
+              }`}
+            >
+              <Save size={13} />
+              {saving ? "SAVING..." : saved ? "SAVED ✓" : "SAVE CONFIG"}
             </button>
           </div>
         </div>

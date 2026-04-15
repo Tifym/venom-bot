@@ -1,28 +1,34 @@
 import { useState, useEffect } from 'react';
 
 export function useSystemStatus() {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<string>('CONNECTING');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `${protocol}//${window.location.hostname}:8000/ws`;
-    if (!wsUrl) return;
-    
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'status_update') {
-          setStatus(data.payload);
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'status_update') {
+          const payload = msg.payload;
+          if (!payload.binance_connected && !payload.bybit_connected) {
+            setStatus('DATA_STARVED');
+          } else {
+            setStatus('ACTIVE');
+          }
         }
-      } catch(e) {}
+      } catch {}
     };
 
-    return () => {
-      ws.close();
-    };
+    ws.onopen = () => setStatus('ACTIVE');
+    ws.onclose = () => setStatus('DISCONNECTED');
+    ws.onerror = () => ws.close();
+
+    return () => ws.close();
   }, []);
 
   return status;
