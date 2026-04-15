@@ -10,6 +10,8 @@ class DivergenceDetector:
         self.rsi_period = rsi_period
         self.stoch_period = stoch_period
         self.timeframes = ['1m', '3m', '5m', '15m', '30m', '1h']
+        self.last_type = DivergenceType.NONE
+        self.last_score = 0
 
     def detect_divergence(self, candles: List[Candle]) -> Tuple[DivergenceType, int]:
         if len(candles) < max(self.rsi_period, self.stoch_period) + 5:
@@ -65,4 +67,6 @@ class DivergenceDetector:
                 div_type = DivergenceType.HIDDEN_BEARISH
                 score = 15
 
+        self.last_type = div_type
+        self.last_score = score
         return div_type, score

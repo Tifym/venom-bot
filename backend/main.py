@@ -100,12 +100,14 @@ async def _process_stream(source: str, data: Dict[str, Any]):
                                 "data": signal.dict()
                             })
                         
-                        # Even if no signal, broadcast raw technical data for chart HUD
+                        # Broadcast raw technical data for chart HUD
+                        # We use the results from the most recent active divergence/fib calc
                         await ws_router.frontend_ws_manager.broadcast({
                             "type": "raw_tech",
+                            "tf_source": "1m",
                             "divergence": {
-                                "type": div_type.name if hasattr(div_type, 'name') else str(div_type),
-                                "score": div_score
+                                "type": signal_engine.div_detector.last_type.name if hasattr(signal_engine.div_detector.last_type, "name") else "NONE",
+                                "score": signal_engine.div_detector.last_score
                             },
                             "fib_pockets": signal_engine.fib_tracker.pockets
                         })
@@ -222,7 +224,8 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("venom_bot_shutting_down")
-    await postgres_client.disconnect()
+    if postgres_client.engine:
+        await postgres_client.engine.dispose()
     await redis_client.disconnect()
 
 app = FastAPI(title="VENOM BOT API", lifespan=lifespan)

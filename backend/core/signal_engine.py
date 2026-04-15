@@ -142,7 +142,7 @@ class SignalEngine:
             # Confluence Logic: Average or Strictest? 
             # We use Weighted Sum: and only add if TF matches
             div_total = sum(res[1] for res in div_results) / max(len(div_results), 1)
-            bb_total = sum(res) for res in bb_results) / max(len(bb_results), 1)
+            bb_total = sum(bb_results) / max(len(bb_results), 1)
             
             # 5. Raw Data Matrix (OI & Liquidation Surge)
             liq_boost = self.liq_monitor.get_boost(direction.name)
