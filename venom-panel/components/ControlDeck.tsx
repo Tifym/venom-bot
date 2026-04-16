@@ -32,7 +32,16 @@ export function ControlDeck() {
       .catch(console.error);
   }, []);
 
-  // Sync config when backend broadcasts a config_update (another tab saved, or server restarted with restored config)
+  // Sync config when backend broadcasts a config_update
+  useEffect(() => {
+    if (!wsData) return;
+    if (wsData.type === "config_update" && wsData.config) {
+      setConfig(wsData.config);
+    }
+    if (wsData.type === "macro_update") {
+      if (wsData.news) setNews(wsData.news);
+      if (wsData.sentiment) setSentiment({ score: wsData.sentiment, text: wsData.sentiment_text });
+    }
   }, [wsData]);
 
   const handlePresetChange = async (newMode: string) => {
