@@ -56,7 +56,7 @@ export default function VenomPanel() {
         {/* Left Stack: Chart & ControlDeck */}
         <div className="left-stack">
           <section id="v-chart" className="chart-section glass-panel flex flex-col p-4 w-full h-fit min-h-[600px]">
-            <VenomChart liveData={liveData} toggles={chartToggles} />
+            <VenomChart liveData={liveData} toggles={chartToggles} setToggles={setChartToggles} />
           </section>
           
           <section id="v-control" className="glass-panel w-full">

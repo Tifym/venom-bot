@@ -5,7 +5,7 @@ import { Settings, BarChart2, Zap, Layers, Activity } from "lucide-react";
 import { calculateWR, calculateKDJ, calculateMACD, calculatePivots } from "@/utils/indicators";
 import { VenomIndicatorPanel } from "./VenomIndicatorPanel";
 
-export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any }) {
+export function VenomChart({ liveData, toggles, setToggles }: { liveData?: any, toggles: any, setToggles: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
   const volumeRef = useRef<any>(null);
