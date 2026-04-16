@@ -46,6 +46,8 @@ export interface LiveData {
     };
     tf_source?: string;
     fib_pockets?: any;
+    ratio?: number;
+    payload?: any;
     status?: Record<string, boolean>;
     ws_states?: Record<string, string>;
     config?: any;
