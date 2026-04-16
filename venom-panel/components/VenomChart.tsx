@@ -559,9 +559,9 @@ export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
               <div className="flex justify-between items-center">
                   <span className="text-[9px] text-white/40 font-mono tracking-tighter uppercase">Circuit Breaker</span>
                   <span className={`text-[10px] font-mono font-black ${
-                      (liveData?.cross_dev > 0.003) ? 'text-red-500 animate-pulse' : 'text-toxic'
+                      (liveData?.cross_dev ?? 0) > 0.003 ? 'text-red-500 animate-pulse' : 'text-toxic'
                   }`}>
-                      {liveData?.cross_dev > 0.003 ? 'VETO_WARNING' : 'STABLE'}
+                      {(liveData?.cross_dev ?? 0) > 0.003 ? 'VETO_WARNING' : 'STABLE'}
                   </span>
               </div>
           </div>
