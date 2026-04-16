@@ -8,7 +8,6 @@ import { WeightSliders } from "./WeightSliders";
 import { ThresholdControls } from "./ThresholdControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { ChartToggles } from "@/types/terminal";
 
 const PRESETS = ["SILENT", "HUNTER", "PREDATOR", "RAMPAGE", "CUSTOM"];
