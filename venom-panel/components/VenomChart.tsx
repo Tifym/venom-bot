@@ -343,6 +343,7 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
       if (liveData.type === 'signal') {
         const s = liveData.data;
         const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
+        const isAtomic = s.confluence?.label === 'ATOMIC_CONFLUENCE';
         
         const currentMarkers = (seriesRef.current.getMarkers() || []).filter((m: any) => m.time !== time);
         if (isAtomic) {
@@ -363,9 +364,6 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
             size: isAtomic ? 2 : 1
           }
         ].slice(-100));
-            text: `${s.direction} @ ${Number(s.entry_low).toFixed(1)}`,
-          }
-        ].slice(-20));
 
         priceLinesRef.current.forEach(l => seriesRef.current.removePriceLine(l));
         priceLinesRef.current = [];
