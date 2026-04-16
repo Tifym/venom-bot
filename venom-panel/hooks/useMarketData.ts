@@ -29,7 +29,7 @@ export function useMarketData() {
     }
 
     if (wsData.type === 'orderbook_ratio') {
-      setMarketData(prev => ({ ...prev, orderbookRatio: wsData.ratio }));
+      setMarketData(prev => ({ ...prev, orderbookRatio: wsData.ratio ?? prev.orderbookRatio }));
     }
   }, [wsData]);
 
