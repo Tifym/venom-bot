@@ -48,7 +48,7 @@ export function VenomHeader({ liveData }: { liveData: LiveData }) {
             {/* NEWS TICKER (Marquee) */}
             <div className="bg-toxic/5 border-b border-toxic/10 overflow-hidden whitespace-nowrap py-1">
                 <div className="flex gap-8 animate-marquee">
-                    {liveData?.news?.length > 0 ? liveData.news.map((item: any, i: number) => (
+                    {liveData?.news && liveData.news.length > 0 ? liveData.news.map((item: any, i: number) => (
                         <a key={i} href={item.link} target="_blank" className="text-[10px] font-mono text-toxic/70 hover:text-toxic flex items-center gap-2">
                             <span className="opacity-40">[{item.source.toUpperCase()}]</span> {item.title}
                         </a>

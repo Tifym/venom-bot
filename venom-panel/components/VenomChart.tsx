@@ -287,7 +287,7 @@ export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
           fibZonesRef.current = [];
           
           if (liveData.fib_pockets && toggles.fib) {
-              Object.entries(liveData.fib_pockets).forEach(([zone, range]: any) => {
+              Object.entries(liveData.fib_pockets || {}).forEach(([zone, range]: any) => {
                   if (!range || range.length < 2) return;
                   const colors: any = { omega: '#00FF41', alpha: '#FF0040', beta: '#f59e0b', delta: '#3b82f6', gamma: '#6366f1' };
                   const color = colors[zone] || 'rgba(255,255,255,0.2)';
@@ -493,8 +493,8 @@ export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
       <div className="absolute bottom-16 left-4 z-10 flex flex-col gap-3">
           {/* Signal Confluence Indicators */}
           {liveData?.status && (
-            <div className="flex gap-2 p-1 bg-black/40 rounded border border-white/5">
-                {Object.entries(liveData.status).map(([key, isActive]: any) => (
+              <div className="flex gap-2 p-1 bg-black/40 rounded border border-white/5">
+                  {Object.entries(liveData.status || {}).map(([key, isActive]: any) => (
                     <div key={key} className="flex flex-col items-center gap-1 group/item">
                         <div className={`w-3 h-3 rounded-sm border ${
                             isActive ? 'bg-toxic shadow-[0_0_10px_#00FF41] border-toxic' : 'bg-black/40 border-white/10'
