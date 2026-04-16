@@ -33,17 +33,7 @@ export function ControlDeck() {
   }, []);
 
   // Sync config when backend broadcasts a config_update (another tab saved, or server restarted with restored config)
-  useEffect(() => {
-    if (!wsData) return;
-    if (wsData.type === "config_update" && wsData.config) {
-      setConfig(wsData.config);
-    }
-    if (wsData.type === "macro_update") {
-      if (wsData.news) setNews(wsData.news);
-      if (wsData.sentiment) setSentiment({ score: wsData.sentiment, text: wsData.sentiment_text });
-    }
   }, [wsData]);
- Riverside
 
   const handlePresetChange = async (newMode: string) => {
     // When switching preset, POST to backend which reloads full preset definition
@@ -135,10 +125,9 @@ export function ControlDeck() {
   const isCustom = config.mode?.toUpperCase() === "CUSTOM";
 
   return (
-        </div>
-
-        {/* NEWS TICKER */}
-        <div className="bg-toxic/5 border-y border-toxic/10 overflow-hidden whitespace-nowrap py-1">
+    <div className="flex flex-col w-full">
+      {/* NEWS TICKER */}
+      <div className="bg-toxic/5 border-y border-toxic/10 overflow-hidden whitespace-nowrap py-1">
             <div className="flex gap-8 animate-marquee">
                 {news.length > 0 ? news.map((item, i) => (
                     <a key={i} href={item.link} target="_blank" className="text-[9px] font-mono text-toxic/70 hover:text-toxic flex items-center gap-2">
