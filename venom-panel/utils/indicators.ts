@@ -81,3 +81,26 @@ export function calculateMACD(data: any[], fast = 12, slow = 26, signal = 9) {
         }))
     };
 }
+
+export function calculatePivots(data: any[], window = 10) {
+    if (data.length < window * 2 + 1) return [];
+    
+    const pivots: number[] = [];
+    for (let i = window; i < data.length - window; i++) {
+        const slice = data.slice(i - window, i + window + 1);
+        const high = data[i].high;
+        const low = data[i].low;
+        
+        // Pivot High
+        if (high === Math.max(...slice.map(d => d.high))) {
+            pivots.push(high);
+        }
+        // Pivot Low
+        if (low === Math.min(...slice.map(d => d.low))) {
+            pivots.push(low);
+        }
+    }
+    
+    // De-duplicate and keep only recent/relevant ones
+    return [...new Set(pivots)].slice(-10);
+}

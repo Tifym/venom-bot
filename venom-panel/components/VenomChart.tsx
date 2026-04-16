@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
 import { Settings, BarChart2, Zap, Layers, Activity } from "lucide-react";
-import { calculateWR, calculateKDJ, calculateMACD } from "@/utils/indicators";
+import { calculateWR, calculateKDJ, calculateMACD, calculatePivots } from "@/utils/indicators";
 import { VenomIndicatorPanel } from "./VenomIndicatorPanel";
 
 export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any }) {
@@ -12,12 +12,13 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
   const chartRef = useRef<any>(null);
   const priceLinesRef = useRef<any[]>([]);
   const bbRef = useRef<any[]>([]); // [upper, mid, lower]
+  const srLinesRef = useRef<any[]>([]); // Auto S/R
   const drawingSeriesRef = useRef<any[]>([]); // For trendlines
 
   const [activeTF, setActiveTF] = useState("1m");
   const [drawMode, setDrawMode] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
-  const [indicatorData, setIndicatorData] = useState<any>({ wr: [], kdj: [[],[],[]], macd: [[],[],[]] });
+  const [indicatorData, setIndicatorData] = useState<any>({ wr: [], kdj: [[],[],[]], macd: [[],[],[]], pivots: [] });
 
   const lastTimeRef = useRef<number>(0);
   const candleHistory = useRef<any[]>([]);
@@ -220,11 +221,13 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
     const wrData = calculateWR(history, 10);
     const kdjData = calculateKDJ(history);
     const macdData = calculateMACD(history);
+    const pivots = calculatePivots(history);
     
     setIndicatorData({
         wr: wrData,
         kdj: [kdjData.k, kdjData.d, kdjData.j],
-        macd: [macdData.macd, macdData.signal, macdData.histogram]
+        macd: [macdData.macd, macdData.signal, macdData.histogram],
+        pivots: pivots
     });
   };
 
@@ -236,7 +239,23 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
         bbRef.current[2].applyOptions({ visible: toggles.bb });
     }
     if (volumeRef.current) volumeRef.current.applyOptions({ visible: toggles.volume });
-  }, [toggles]);
+
+    // Sync Auto S/R
+    srLinesRef.current.forEach(l => seriesRef.current?.removePriceLine(l));
+    srLinesRef.current = [];
+    if (toggles.sr && indicatorData.pivots?.length > 0) {
+        indicatorData.pivots.forEach((price: number) => {
+            const pl = seriesRef.current?.createPriceLine({
+                price,
+                color: 'rgba(255, 255, 255, 0.15)',
+                lineWidth: 1,
+                lineStyle: 2,
+                title: 'PVT'
+            });
+            if (pl) srLinesRef.current.push(pl);
+        });
+    }
+  }, [toggles, indicatorData.pivots]);
 
   useEffect(() => {
     if (!liveData || !seriesRef.current) return;
@@ -326,8 +345,13 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
         const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
         
         const currentMarkers = (seriesRef.current.getMarkers() || []).filter((m: any) => m.time !== time);
-        const isAtomic = s.confluence?.label === 'ATOMIC_CONFLUENCE';
-        
+        if (isAtomic) {
+            // High-decibel Atomic Cue
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3');
+            audio.volume = 0.4;
+            audio.play().catch(() => {});
+        }
+
         seriesRef.current.setMarkers([
           ...currentMarkers,
           {
@@ -515,7 +539,11 @@ export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any
               </div>
               <div className="flex justify-between items-center">
                   <span className="text-[9px] text-white/40 font-mono tracking-tighter uppercase">Circuit Breaker</span>
-                  <span className="text-[10px] font-mono font-black text-toxic">STABLE</span>
+                  <span className={`text-[10px] font-mono font-black ${
+                      (liveData?.cross_dev > 0.003) ? 'text-red-500 animate-pulse' : 'text-toxic'
+                  }`}>
+                      {liveData?.cross_dev > 0.003 ? 'VETO_WARNING' : 'STABLE'}
+                  </span>
               </div>
           </div>
       </div>
