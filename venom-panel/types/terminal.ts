@@ -21,10 +21,13 @@ export interface VenomSignal {
         sources: string[];
         label: string;
     };
-    entry_low?: string;
+    entry_low?: string | number;
+    entry_high?: string | number;
     tp1?: number;
     tp2?: number;
     stop_loss?: number;
+    total_score?: number;
+    zone?: string;
 }
 
 export interface LiveData {
