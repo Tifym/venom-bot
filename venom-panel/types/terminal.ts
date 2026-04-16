@@ -39,7 +39,10 @@ export interface LiveData {
     };
     divergence?: {
         type: string;
+        score?: number;
     };
+    tf_source?: string;
+    fib_pockets?: any;
     status?: Record<string, boolean>;
     ws_states?: Record<string, string>;
     config?: any;
