@@ -42,6 +42,7 @@ export interface LiveData {
     };
     status?: Record<string, boolean>;
     ws_states?: Record<string, string>;
+    config?: any;
     news?: Array<{
         title: string;
         link: string;
