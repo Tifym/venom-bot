@@ -238,13 +238,13 @@ export function ControlDeck({ toggles, setToggles }: ControlDeckProps) {
                           key={ind.id}
                           onClick={() => setToggles((prev: ChartToggles) => ({ ...prev, [ind.id]: !prev[ind.id as keyof ChartToggles] }))}
                           className={`py-2 px-3 rounded border text-[10px] font-mono font-bold uppercase transition-all flex justify-between items-center ${
-                              toggles[ind.id]
+                              toggles[ind.id as keyof ChartToggles]
                               ? 'bg-toxic/10 border-toxic text-toxic shadow-[0_0_10px_rgba(0,255,65,0.1)]'
                               : 'bg-black/20 border-white/5 text-white/20'
                           }`}
                       >
                           {ind.label}
-                          <div className={`w-1.5 h-1.5 rounded-full ${toggles[ind.id] ? 'bg-toxic shadow-[0_0_5px_#00FF41]' : 'bg-white/10'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${toggles[ind.id as keyof ChartToggles] ? 'bg-toxic shadow-[0_0_5px_#00FF41]' : 'bg-white/10'}`} />
                       </button>
                   ))}
               </div>
