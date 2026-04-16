@@ -2,8 +2,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
 import { Settings, BarChart2, Zap, Layers, Activity } from "lucide-react";
+import { calculateWR, calculateKDJ, calculateMACD } from "@/utils/indicators";
+import { VenomIndicatorPanel } from "./VenomIndicatorPanel";
 
-export function VenomChart({ liveData }: { liveData?: any }) {
+export function VenomChart({ liveData, toggles }: { liveData?: any, toggles: any }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
   const volumeRef = useRef<any>(null);
@@ -12,16 +14,10 @@ export function VenomChart({ liveData }: { liveData?: any }) {
   const bbRef = useRef<any[]>([]); // [upper, mid, lower]
   const drawingSeriesRef = useRef<any[]>([]); // For trendlines
 
-  const [toggles, setToggles] = useState({
-    bb: true,
-    volume: true,
-    fib: true,
-    div: true
-  });
-  
   const [activeTF, setActiveTF] = useState("1m");
   const [drawMode, setDrawMode] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
+  const [indicatorData, setIndicatorData] = useState<any>({ wr: [], kdj: [[],[],[]], macd: [[],[],[]] });
 
   const lastTimeRef = useRef<number>(0);
   const candleHistory = useRef<any[]>([]);
@@ -219,6 +215,17 @@ export function VenomChart({ liveData }: { liveData?: any }) {
     bbRef.current[0].setData(upperData);
     bbRef.current[1].setData(midData);
     bbRef.current[2].setData(lowerData);
+
+    // Calculate Extended Indicators
+    const wrData = calculateWR(history, 10);
+    const kdjData = calculateKDJ(history);
+    const macdData = calculateMACD(history);
+    
+    setIndicatorData({
+        wr: wrData,
+        kdj: [kdjData.k, kdjData.d, kdjData.j],
+        macd: [macdData.macd, macdData.signal, macdData.histogram]
+    });
   };
 
   // Sync Toggles Visibility
@@ -310,12 +317,8 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         }
         candleHistory.current = historyCopy;
 
-        const bb = calculateBB(historyCopy);
-        if (bb) {
-            bbRef.current[0].update({ time, value: bb.upper });
-            bbRef.current[1].update({ time, value: bb.mid });
-            bbRef.current[2].update({ time, value: bb.lower });
-        }
+        // Update all indicators for new candle
+        updateBB(historyCopy);
       }
 
       if (liveData.type === 'signal') {
@@ -323,6 +326,8 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
         
         const currentMarkers = (seriesRef.current.getMarkers() || []).filter((m: any) => m.time !== time);
+        const isAtomic = s.confluence?.label === 'ATOMIC_CONFLUENCE';
+        
         seriesRef.current.setMarkers([
           ...currentMarkers,
           {
@@ -330,6 +335,10 @@ export function VenomChart({ liveData }: { liveData?: any }) {
             position: s.direction?.toUpperCase() === 'LONG' ? 'belowBar' : 'aboveBar',
             color: s.direction?.toUpperCase() === 'LONG' ? '#00FF41' : '#FF0040',
             shape: s.direction?.toUpperCase() === 'LONG' ? 'arrowUp' : 'arrowDown',
+            text: isAtomic ? "ATOMIC ENTRY" : "CONFIRMED",
+            size: isAtomic ? 2 : 1
+          }
+        ].slice(-100));
             text: `${s.direction} @ ${Number(s.entry_low).toFixed(1)}`,
           }
         ].slice(-20));
@@ -406,7 +415,38 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         </button>
       </div>
 
-      <div ref={chartContainerRef} className="absolute inset-0" />
+      <div ref={chartContainerRef} className="flex-grow w-full h-[400px]" />
+
+      {/* INDICATOR STACK */}
+      <div className="flex flex-col w-full h-fit border-t border-white/10">
+          {toggles.wr && (
+              <VenomIndicatorPanel 
+                title="Williams %R (10)" 
+                data={indicatorData.wr} 
+                type="line" 
+                height={120} 
+                syncScale={chartRef.current?.timeScale()}
+              />
+          )}
+          {toggles.kdj && (
+              <VenomIndicatorPanel 
+                title="KDJ (9,3,3)" 
+                data={indicatorData.kdj} 
+                type="kdj" 
+                height={140} 
+                syncScale={chartRef.current?.timeScale()}
+              />
+          )}
+          {toggles.macd && (
+              <VenomIndicatorPanel 
+                title="MACD (12,26,9)" 
+                data={indicatorData.macd} 
+                type="macd" 
+                height={160} 
+                syncScale={chartRef.current?.timeScale()}
+              />
+          )}
+      </div>
 
       {/* MATRIX STATUS LIGHTS (Enhanced for Multi-Exchange) */}
       <div className="absolute bottom-16 left-4 z-10 flex flex-col gap-3">
@@ -438,18 +478,47 @@ export function VenomChart({ liveData }: { liveData?: any }) {
           </div>
       </div>
 
-      {/* SENTIMENT HUD */}
-      {liveData?.sentiment !== undefined && (
-        <div className="absolute top-20 right-4 z-10 flex flex-col items-end gap-1">
-            <div className={`px-2 py-1 rounded border text-[10px] font-black font-mono transition-all ${
-                liveData.sentiment < 25 ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_#ef4444]' :
-                liveData.sentiment > 75 ? 'bg-toxic/20 border-toxic text-toxic shadow-[0_0_10px_#00FF41]' :
-                'bg-white/5 border-white/10 text-white/50'
-            }`}>
-                SENTIMENT: {liveData.sentiment} ({liveData.sentiment_text?.toUpperCase()})
-            </div>
-        </div>
-      )}
+      {/* MATRIX INTELLIGENCE HUD */}
+      <div className="absolute top-20 right-4 z-10 flex flex-col gap-4 items-end">
+          {/* Sentiment Gauge */}
+          {liveData?.sentiment !== undefined && (
+              <div className={`bg-black/80 border p-3 rounded-lg backdrop-blur-xl flex flex-col items-center w-36 shadow-2xl transition-all ${
+                  liveData.sentiment < 25 ? 'border-red-500 shadow-red-500/20' :
+                  liveData.sentiment > 75 ? 'border-toxic shadow-toxic/20' :
+                  'border-white/10'
+              }`}>
+                  <span className="text-[10px] text-white/30 uppercase font-mono tracking-widest mb-1">SENTIMENT</span>
+                  <span className={`text-2xl font-black tabular-nums ${
+                      (liveData.sentiment >= 70) ? 'text-toxic' : (liveData.sentiment <= 30) ? 'text-red-500' : 'text-white'
+                  }`}>
+                      {liveData.sentiment}/100
+                  </span>
+                  <span className="text-[9px] text-white/50 font-mono text-center leading-none mt-1 uppercase">
+                      {liveData.sentiment_text || 'SCANNING...'}
+                  </span>
+              </div>
+          )}
+
+          {/* Macro Intelligence Stats */}
+          <div className="bg-black/80 border border-white/10 p-3 rounded-lg backdrop-blur-xl flex flex-col gap-2 w-52 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-white/5 pb-1.5">
+                  <span className="text-[9px] text-white/40 font-mono tracking-tighter uppercase">Mempool Priority</span>
+                  <span className="text-[10px] font-mono font-black text-toxic">{liveData?.mempool?.fastestFee || '--'} SAT/vB</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-white/5 pb-1.5">
+                  <span className="text-[9px] text-white/40 font-mono tracking-tighter uppercase">Divergence Alert</span>
+                  <span className={`text-[9px] font-mono font-black ${
+                      liveData?.divergence?.type ? 'text-blue-400' : 'text-white/20'
+                  }`}>
+                      {liveData?.divergence?.type || 'NO ACTIVE DIV'}
+                  </span>
+              </div>
+              <div className="flex justify-between items-center">
+                  <span className="text-[9px] text-white/40 font-mono tracking-tighter uppercase">Circuit Breaker</span>
+                  <span className="text-[10px] font-mono font-black text-toxic">STABLE</span>
+              </div>
+          </div>
+      </div>
 
       {/* SIGNAL PULSE OVERLAY */}
       {liveData?.type === 'signal' && (

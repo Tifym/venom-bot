@@ -13,8 +13,12 @@ class CustomOptions(BaseModel):
     bbands_deviation: float = 2.0
     custom_fibs: Dict[str, List[float]] = {}
     
-    # Raw Data Matrix
     mempool_fee_min: int = 5
+    
+    # Institutional Matrix
+    ob_ratio_min: float = 2.5
+    liq_burst_usd: float = 50000.0
+    oi_spike_pct: float = 0.5
     
     # Data Matrix Toggles
     source_binance: bool = True

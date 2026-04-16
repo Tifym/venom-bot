@@ -147,7 +147,62 @@ class SignalEngine:
             
             direction = SignalDirection.LONG if ob_dir == "LONG" else SignalDirection.SHORT
 
-            # 4. Indicators Matrix (Multi-TF Parallel Confirmation)
+            # 4. Multi-TF Indicator Confluence Matrix
+            inc_score = 0
+            conf_reasons = []
+
+            # 4.1 Williams %R Confirmation
+            wr_period = 10
+            if len(m1_candles) >= wr_period:
+                closes = [c.close for c in m1_candles[-wr_period:]]
+                highs = [c.high for c in m1_candles[-wr_period:]]
+                lows = [c.low for c in m1_candles[-wr_period:]]
+                hh, ll = max(highs), min(lows)
+                wr = ((hh - closes[-1]) / (hh - ll)) * -100 if hh != ll else -50
+                
+                if direction == SignalDirection.LONG and wr < -80:
+                    inc_score += 15
+                    conf_reasons.append("WR_OVERSOLD")
+                elif direction == SignalDirection.SHORT and wr > -20:
+                    inc_score += 15
+                    conf_reasons.append("WR_OVERBOUGHT")
+
+            # 4.2 Divergence Matrix (Atomic)
+            div_type, div_score = await self._async_div(m1_candles)
+            if div_score > 0:
+                inc_score += div_score
+                conf_reasons.append(f"DIV_{div_type}")
+
+            # 4.3 RSI/EMA Confirmation (Legacy + Boost)
+            # ... existing logic could go here ...
+
+            final_score = ob_score + inc_score
+            
+            # 5. Logic Gates
+            min_score = self.preset.min_score
+            if final_score < min_score:
+                logger.debug("signal_rejected_low_total_score", score=final_score, min=min_score)
+                self.rejected_signals += 1
+                return None
+
+            # 6. Signal Weaponization (Metadata)
+            signal_id = str(uuid.uuid4())
+            conf_label = "ATOMIC_CONFLUENCE" if final_score >= 75 else "STANDARD_CONFIRMATION"
+            
+            return VenomSignal(
+                id=signal_id,
+                timestamp=datetime.now(timezone.utc),
+                symbol="BTCUSDT",
+                direction=direction,
+                price=current_price,
+                score=final_score,
+                mode=self.mode,
+                confluence=ConfluenceMetrics(
+                    score=final_score,
+                    sources=conf_reasons + ["ORDERBOOK"],
+                    label=conf_label
+                )
+            )
             # Parallel Divergence detections
             div_tasks = [self._async_div(candles.get(tf, m1_candles)) for tf in tfs_div]
             # Parallel BB detections

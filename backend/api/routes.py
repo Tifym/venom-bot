@@ -27,6 +27,7 @@ def _build_config_dict() -> dict:
             "cooldown_dir": p.cooldown_dir,
             "daily_cap": p.daily_cap,
             "atr_filter": p.atr_filter,
+            "fib_required": p.fib_required,
         }
     }
     if p.custom_options:
@@ -41,6 +42,14 @@ def _build_config_dict() -> dict:
             "liq_burst_usd": p.custom_options.liq_burst_usd,
             "oi_spike_pct": p.custom_options.oi_spike_pct,
             "mempool_fee_min": p.custom_options.mempool_fee_min,
+            "source_binance": p.custom_options.source_binance,
+            "source_bybit": p.custom_options.source_bybit,
+            "source_deribit": p.custom_options.source_deribit,
+            "source_kraken": p.custom_options.source_kraken,
+            "source_bitfinex": p.custom_options.source_bitfinex,
+            "source_mempool": p.custom_options.source_mempool,
+            "source_news": p.custom_options.source_news,
+            "bbands_enabled": p.custom_options.bbands_enabled,
             "tf_chart": p.custom_options.tf_chart,
         }
     return base
@@ -85,6 +94,14 @@ async def load_config_from_redis():
             if "liq_burst_usd" in c: opts.liq_burst_usd = float(c["liq_burst_usd"])
             if "oi_spike_pct" in c: opts.oi_spike_pct = float(c["oi_spike_pct"])
             if "mempool_fee_min" in c: opts.mempool_fee_min = int(c["mempool_fee_min"])
+            if "source_binance" in c: opts.source_binance = c["source_binance"]
+            if "source_bybit" in c: opts.source_bybit = c["source_bybit"]
+            if "source_deribit" in c: opts.source_deribit = c["source_deribit"]
+            if "source_kraken" in c: opts.source_kraken = c["source_kraken"]
+            if "source_bitfinex" in c: opts.source_bitfinex = c["source_bitfinex"]
+            if "source_mempool" in c: opts.source_mempool = c["source_mempool"]
+            if "source_news" in c: opts.source_news = c["source_news"]
+            if "bbands_enabled" in c: opts.bbands_enabled = c["bbands_enabled"]
             if "tf_chart" in c: opts.tf_chart = c["tf_chart"]
 
         logger.info("config_restored_from_redis", mode=mode_str)
@@ -132,6 +149,14 @@ async def update_config(payload: Dict[str, Any]):
             if "liq_burst_usd" in c: opts.liq_burst_usd = float(c["liq_burst_usd"])
             if "oi_spike_pct" in c: opts.oi_spike_pct = float(c["oi_spike_pct"])
             if "mempool_fee_min" in c: opts.mempool_fee_min = int(c["mempool_fee_min"])
+            if "source_binance" in c: opts.source_binance = c["source_binance"]
+            if "source_bybit" in c: opts.source_bybit = c["source_bybit"]
+            if "source_deribit" in c: opts.source_deribit = c["source_deribit"]
+            if "source_kraken" in c: opts.source_kraken = c["source_kraken"]
+            if "source_bitfinex" in c: opts.source_bitfinex = c["source_bitfinex"]
+            if "source_mempool" in c: opts.source_mempool = c["source_mempool"]
+            if "source_news" in c: opts.source_news = c["source_news"]
+            if "bbands_enabled" in c: opts.bbands_enabled = c["bbands_enabled"]
             if "tf_chart" in c: opts.tf_chart = c["tf_chart"]
 
     # Persist to Redis so it survives refreshes

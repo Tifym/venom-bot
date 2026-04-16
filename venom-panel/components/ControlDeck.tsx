@@ -10,7 +10,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 
 const PRESETS = ["SILENT", "HUNTER", "PREDATOR", "RAMPAGE", "CUSTOM"];
 
-export function ControlDeck() {
+export function ControlDeck({ toggles, setToggles }: { toggles: any, setToggles: any }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -209,7 +209,39 @@ export function ControlDeck() {
 
       {/* Expanded config panel */}
       {isExpanded && (
-        <div className="p-4 flex flex-col gap-6 w-full overflow-y-auto max-h-[70vh]">
+        <div className="p-4 flex flex-col gap-6 w-full overflow-y-auto max-h-[70vh] no-scrollbar">
+
+          {/* INDICATOR SUITE (Global) */}
+          <div className="p-4 bg-white/5 rounded-xl border border-white/10 flex flex-col gap-4">
+              <h3 className="text-xs font-mono text-toxic tracking-[0.2em] uppercase font-black flex items-center gap-2">
+                <BarChart2 size={14} /> Indicator Suite (Visuals)
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[
+                      { id: 'bb', label: 'Bollinger Bands' },
+                      { id: 'volume', label: 'Volume MAs' },
+                      { id: 'wr', label: 'Williams %R' },
+                      { id: 'kdj', label: 'KDJ Matrix' },
+                      { id: 'macd', label: 'MACD Suite' },
+                      { id: 'fib', label: 'Fibonacci Pockets' },
+                      { id: 'div', label: 'Divergence Arrows' },
+                      { id: 'sr', label: 'Auto S/R Levels' }
+                  ].map(ind => (
+                      <button
+                          key={ind.id}
+                          onClick={() => setToggles((prev: any) => ({ ...prev, [ind.id]: !prev[ind.id] }))}
+                          className={`py-2 px-3 rounded border text-[10px] font-mono font-bold uppercase transition-all flex justify-between items-center ${
+                              toggles[ind.id]
+                              ? 'bg-toxic/10 border-toxic text-toxic shadow-[0_0_10px_rgba(0,255,65,0.1)]'
+                              : 'bg-black/20 border-white/5 text-white/20'
+                          }`}
+                      >
+                          {ind.label}
+                          <div className={`w-1.5 h-1.5 rounded-full ${toggles[ind.id] ? 'bg-toxic shadow-[0_0_5px_#00FF41]' : 'bg-white/10'}`} />
+                      </button>
+                  ))}
+              </div>
+          </div>
 
           {/* Custom Signal Blaster panel */}
           {isCustom && (

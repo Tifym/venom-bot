@@ -203,3 +203,25 @@ body {
   from { filter: drop-shadow(0 0 2px rgba(0,255,65,0.3)); }
   to { filter: drop-shadow(0 0 8px rgba(0,255,65,0.6)); }
 }
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

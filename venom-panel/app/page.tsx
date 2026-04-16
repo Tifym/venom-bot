@@ -1,6 +1,6 @@
 "use client";
 
-import { Header } from "@/components/Header";
+import { VenomHeader } from "@/components/VenomHeader";
 import { FooterStatus } from "@/components/FooterStatus";
 import dynamic from "next/dynamic";
 import { ControlDeck } from "@/components/ControlDeck";
@@ -18,6 +18,16 @@ export default function VenomPanel() {
   const { data: liveData } = useWebSocket();
   const { signals: initialSignals } = useSignals();
   const [signals, setLocalSignals] = useState<any[]>([]);
+  const [chartToggles, setChartToggles] = useState({
+    bb: true,
+    volume: true,
+    fib: true,
+    div: true,
+    wr: true,
+    kdj: true,
+    macd: true,
+    sr: true
+  });
 
   useEffect(() => {
     if (initialSignals && initialSignals.length > 0) {
@@ -33,8 +43,8 @@ export default function VenomPanel() {
   }, [liveData]);
 
   return (
-    <div className="venom-container">
-      <Header />
+    <div className="flex flex-col min-h-screen bg-black">
+      <VenomHeader liveData={liveData} />
       
       {status.global === 'DATA_STARVED' && (
         <div className="text-center bg-alert-red/20 text-alert-red py-2 font-mono text-sm border-y border-alert-red/30 w-full mb-4">
@@ -45,12 +55,12 @@ export default function VenomPanel() {
       <main className="venom-main">
         {/* Left Stack: Chart & ControlDeck */}
         <div className="left-stack">
-          <section id="v-chart" className="chart-section glass-panel flex flex-col p-4 w-full h-[600px]">
-            <VenomChart liveData={liveData} />
+          <section id="v-chart" className="chart-section glass-panel flex flex-col p-4 w-full h-fit min-h-[600px]">
+            <VenomChart liveData={liveData} toggles={chartToggles} />
           </section>
           
           <section id="v-control" className="glass-panel w-full">
-            <ControlDeck />
+            <ControlDeck toggles={chartToggles} setToggles={setChartToggles} />
           </section>
         </div>
         
