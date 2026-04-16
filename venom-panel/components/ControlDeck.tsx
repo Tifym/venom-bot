@@ -48,7 +48,7 @@ export function ControlDeck({ toggles, setToggles }: ControlDeckProps) {
     }
     if (wsData.type === "macro_update") {
       if (wsData.news) setNews(wsData.news);
-      if (wsData.sentiment) setSentiment({ score: wsData.sentiment, text: wsData.sentiment_text });
+      if (wsData.sentiment) setSentiment({ score: wsData.sentiment, text: wsData.sentiment_text || "Neutral" });
     }
   }, [wsData]);
 
