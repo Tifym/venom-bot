@@ -10,6 +10,7 @@ import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useState, useEffect } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useSignals } from "@/hooks/useSignals";
+import { ChartToggles } from "@/types/terminal";
 
 const VenomChart = dynamic(() => import("@/components/VenomChart"), { ssr: false });
 
@@ -18,7 +19,7 @@ export default function VenomPanel() {
   const { data: liveData } = useWebSocket();
   const { signals: initialSignals } = useSignals();
   const [signals, setLocalSignals] = useState<any[]>([]);
-  const [chartToggles, setChartToggles] = useState({
+  const [chartToggles, setChartToggles] = useState<ChartToggles>({
     bb: true,
     volume: true,
     fib: true,

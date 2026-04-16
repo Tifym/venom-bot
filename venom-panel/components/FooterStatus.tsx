@@ -1,7 +1,7 @@
 "use client";
 
 import { useSystemStatus } from "../hooks/useSystemStatus";
-import { SystemStatus } from "@/types";
+import { SystemStatus } from "@/types/terminal";
 
 export function FooterStatus({ connected, latency }: { connected?: boolean, latency?: number }) {
   const status: SystemStatus = useSystemStatus();

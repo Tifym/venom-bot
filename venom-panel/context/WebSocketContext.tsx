@@ -2,9 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 
+import { LiveData } from '@/types/terminal';
+
 interface WebSocketContextType {
-  data: any | null;
-  status: any | null;
+  data: LiveData | null;
+  status: LiveData | null;
   isConnected: boolean;
 }
 
@@ -15,8 +17,8 @@ const WebSocketContext = createContext<WebSocketContextType>({
 });
 
 export const WebSocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const [data, setData] = useState<any>(null);
-  const [status, setStatus] = useState<any>(null);
+  const [data, setData] = useState<LiveData | null>(null);
+  const [status, setStatus] = useState<LiveData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);

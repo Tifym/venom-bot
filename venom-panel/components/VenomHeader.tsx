@@ -1,9 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { ChevronDown, Star, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { LiveData } from "@/types/terminal";
 
-export function VenomHeader({ liveData }: { liveData?: any }) {
-    const [stats, setStats] = useState<any>({
+interface HeaderStats {
+    last: number;
+    change: number;
+    high: number;
+    low: number;
+    vol: number;
+    quoteVol: number;
+}
+
+export function VenomHeader({ liveData }: { liveData: LiveData }) {
+    const [stats, setStats] = useState<HeaderStats>({
         last: 0,
         change: 0,
         high: 0,

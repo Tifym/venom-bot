@@ -8,9 +8,17 @@ import { WeightSliders } from "./WeightSliders";
 import { ThresholdControls } from "./ThresholdControls";
 import { useWebSocket } from "@/hooks/useWebSocket";
 
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { ChartToggles } from "@/types/terminal";
+
 const PRESETS = ["SILENT", "HUNTER", "PREDATOR", "RAMPAGE", "CUSTOM"];
 
-export function ControlDeck({ toggles, setToggles }: { toggles: any, setToggles: any }) {
+interface ControlDeckProps {
+    toggles: ChartToggles;
+    setToggles: React.Dispatch<React.SetStateAction<ChartToggles>>;
+}
+
+export function ControlDeck({ toggles, setToggles }: ControlDeckProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -229,7 +237,7 @@ export function ControlDeck({ toggles, setToggles }: { toggles: any, setToggles:
                   ].map(ind => (
                       <button
                           key={ind.id}
-                          onClick={() => setToggles((prev: any) => ({ ...prev, [ind.id]: !prev[ind.id] }))}
+                          onClick={() => setToggles((prev: ChartToggles) => ({ ...prev, [ind.id]: !prev[ind.id as keyof ChartToggles] }))}
                           className={`py-2 px-3 rounded border text-[10px] font-mono font-bold uppercase transition-all flex justify-between items-center ${
                               toggles[ind.id]
                               ? 'bg-toxic/10 border-toxic text-toxic shadow-[0_0_10px_rgba(0,255,65,0.1)]'

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWebSocketData } from "@/context/WebSocketContext";
-import { SystemStatus } from '@/types';
+import { SystemStatus } from '@/types/terminal';
 
 const DEFAULT_STATUS: SystemStatus = {
   binance_connected: false,
@@ -12,6 +12,8 @@ const DEFAULT_STATUS: SystemStatus = {
   mode: 'HUNTER',
   signals_24h: 0,
   global: 'CONNECTING',
+  engine: 'ATOMIC_V1',
+  uptime: '0s'
 };
 
 export function useSystemStatus(): SystemStatus {

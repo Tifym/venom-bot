@@ -1,8 +1,9 @@
 "use client";
 
 import { ExternalLink, Send } from "lucide-react";
+import { VenomSignal } from "@/types/terminal";
 
-export function VenomFeed({ signals }: { signals?: any[] }) {
+export function VenomFeed({ signals }: { signals?: VenomSignal[] }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex border-b border-white/5 bg-black/40">

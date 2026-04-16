@@ -4,8 +4,22 @@ import { createChart, ColorType, CrosshairMode } from "lightweight-charts";
 import { Settings, BarChart2, Zap, Layers, Activity } from "lucide-react";
 import { calculateWR, calculateKDJ, calculateMACD, calculatePivots } from "@/utils/indicators";
 import { VenomIndicatorPanel } from "./VenomIndicatorPanel";
+import { ChartToggles, LiveData } from "@/types/terminal";
 
-export function VenomChart({ liveData, toggles, setToggles }: { liveData?: any, toggles: any, setToggles: any }) {
+interface VenomChartProps {
+    liveData: LiveData;
+    toggles: ChartToggles;
+    setToggles: React.Dispatch<React.SetStateAction<ChartToggles>>;
+}
+
+interface IndicatorStack {
+    wr: any[];
+    kdj: any[][];
+    macd: any[][];
+    pivots: number[];
+}
+
+export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<any>(null);
   const volumeRef = useRef<any>(null);
@@ -18,7 +32,12 @@ export function VenomChart({ liveData, toggles, setToggles }: { liveData?: any, 
   const [activeTF, setActiveTF] = useState("1m");
   const [drawMode, setDrawMode] = useState<string | null>(null);
   const [drawings, setDrawings] = useState<any[]>([]);
-  const [indicatorData, setIndicatorData] = useState<any>({ wr: [], kdj: [[],[],[]], macd: [[],[],[]], pivots: [] });
+  const [indicatorData, setIndicatorData] = useState<IndicatorStack>({ 
+    wr: [], 
+    kdj: [[],[],[]], 
+    macd: [[],[],[]], 
+    pivots: [] 
+  });
 
   const lastTimeRef = useRef<number>(0);
   const candleHistory = useRef<any[]>([]);
@@ -418,19 +437,19 @@ export function VenomChart({ liveData, toggles, setToggles }: { liveData?: any, 
       {/* Indicator HUD (Top Left) */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
         <button 
-            onClick={() => setToggles(prev => ({ ...prev, bb: !prev.bb }))}
+            onClick={() => setToggles((prev: ChartToggles) => ({ ...prev, bb: !prev.bb }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.bb ? 'text-toxic' : 'text-white/40'}`}
         >
             <Activity size={12} /> BBANDS {toggles.bb ? 'ON' : 'OFF'}
         </button>
         <button 
-            onClick={() => setToggles(prev => ({ ...prev, fib: !prev.fib }))}
+            onClick={() => setToggles((prev: ChartToggles) => ({ ...prev, fib: !prev.fib }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.fib ? 'text-toxic' : 'text-white/40'}`}
         >
             <Layers size={12} /> FIB {toggles.fib ? 'ON' : 'OFF'}
         </button>
         <button 
-            onClick={() => setToggles(prev => ({ ...prev, div: !prev.div }))}
+            onClick={() => setToggles((prev: ChartToggles) => ({ ...prev, div: !prev.div }))}
             className={`p-2 rounded bg-black/60 border border-white/10 hover:border-toxic/50 flex items-center gap-2 text-[10px] font-mono tracking-widest ${toggles.div ? 'text-toxic' : 'text-white/40'}`}
         >
             <Zap size={12} /> DIVS {toggles.div ? 'ON' : 'OFF'}

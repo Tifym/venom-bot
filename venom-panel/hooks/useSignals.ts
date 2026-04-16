@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { VenomSignal } from '@/types/terminal';
 
 export function useSignals() {
-  const [signals, setSignals] = useState<any[]>([]);
+  const [signals, setSignals] = useState<VenomSignal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

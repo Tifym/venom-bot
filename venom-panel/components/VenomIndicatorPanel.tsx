@@ -2,12 +2,18 @@
 import React, { useEffect, useRef } from "react";
 import { createChart, ColorType, LineStyle } from "lightweight-charts";
 
+interface IndicatorDataPoint {
+    time: number;
+    value: number;
+    color?: string;
+}
+
 interface IndicatorPanelProps {
     title: string;
-    data: any[]; // { time, value } or array of objects for multi-line
+    data: IndicatorDataPoint[] | IndicatorDataPoint[][];
     type: 'line' | 'histogram' | 'kdj' | 'macd';
     height?: number;
-    syncScale?: any; // Master time scale
+    syncScale?: any;
     config?: any;
     colors?: string[];
 }

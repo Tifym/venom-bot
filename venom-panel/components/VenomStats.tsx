@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSystemStatus } from "../hooks/useSystemStatus";
-import { Stats } from "@/types";
+import { TerminalStats } from "@/types/terminal";
 
 export function VenomStats() {
   // wsStatus drives connection indicators; stats drives the tiles
   const wsStatus = useSystemStatus();
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<TerminalStats | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
