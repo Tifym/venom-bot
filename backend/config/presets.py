@@ -16,6 +16,15 @@ class CustomOptions(BaseModel):
     # Raw Data Matrix
     mempool_fee_min: int = 5
     
+    # Data Matrix Toggles
+    source_binance: bool = True
+    source_bybit: bool = True
+    source_deribit: bool = True
+    source_kraken: bool = True
+    source_bitfinex: bool = True
+    source_mempool: bool = True
+    source_news: bool = True
+    
     # BBands Settings (Found Missing)
     bbands_enabled: bool = True
     bbands_upper: float = 2.0

@@ -408,17 +408,46 @@ export function VenomChart({ liveData }: { liveData?: any }) {
 
       <div ref={chartContainerRef} className="absolute inset-0" />
 
-      {/* MATRIX STATUS LIGHTS (Confluence HUD) */}
-      {liveData?.status && (
-        <div className="absolute bottom-16 left-4 z-10 flex gap-2">
-            {Object.entries(liveData.status).map(([key, isActive]: any) => (
-                <div key={key} className="flex flex-col items-center gap-1 group/item">
-                    <div className={`w-3 h-3 rounded-sm border ${
-                        isActive ? 'bg-toxic shadow-[0_0_10px_#00FF41] border-toxic' : 'bg-black/40 border-white/10'
-                    } transition-all duration-300`} />
-                    <span className="text-[8px] font-mono uppercase text-white/50 group-hover/item:text-toxic">{key}</span>
+      {/* MATRIX STATUS LIGHTS (Enhanced for Multi-Exchange) */}
+      <div className="absolute bottom-16 left-4 z-10 flex flex-col gap-3">
+          {/* Signal Confluence Indicators */}
+          {liveData?.status && (
+            <div className="flex gap-2 p-1 bg-black/40 rounded border border-white/5">
+                {Object.entries(liveData.status).map(([key, isActive]: any) => (
+                    <div key={key} className="flex flex-col items-center gap-1 group/item">
+                        <div className={`w-3 h-3 rounded-sm border ${
+                            isActive ? 'bg-toxic shadow-[0_0_10px_#00FF41] border-toxic' : 'bg-black/40 border-white/10'
+                        } transition-all duration-300`} />
+                        <span className="text-[7px] font-mono uppercase text-white/30 group-hover/item:text-toxic">{key}</span>
+                    </div>
+                ))}
+            </div>
+          )}
+
+          {/* Exchange Connectivity Status */}
+          <div className="flex gap-1.5 p-1 px-2 bg-black/60 rounded-full border border-white/10 items-center">
+            {['BINANCE', 'BYBIT', 'DERIBIT', 'KRAKEN', 'BITFINEX', 'MEMPOOL'].map(ex => (
+                <div key={ex} className="flex items-center gap-1 group/ex">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                        (liveData?.ws_states?.[ex.toLowerCase()] || 'HEALTHY') === 'HEALTHY' 
+                        ? 'bg-toxic shadow-[0_0_5px_#00FF41]' : 'bg-red-500 animate-pulse'
+                    }`} />
+                    <span className="text-[6px] font-mono text-white/20 group-hover/ex:text-white/60">{ex[0]}</span>
                 </div>
             ))}
+          </div>
+      </div>
+
+      {/* SENTIMENT HUD */}
+      {liveData?.sentiment !== undefined && (
+        <div className="absolute top-20 right-4 z-10 flex flex-col items-end gap-1">
+            <div className={`px-2 py-1 rounded border text-[10px] font-black font-mono transition-all ${
+                liveData.sentiment < 25 ? 'bg-red-500/20 border-red-500 text-red-500 shadow-[0_0_10px_#ef4444]' :
+                liveData.sentiment > 75 ? 'bg-toxic/20 border-toxic text-toxic shadow-[0_0_10px_#00FF41]' :
+                'bg-white/5 border-white/10 text-white/50'
+            }`}>
+                SENTIMENT: {liveData.sentiment} ({liveData.sentiment_text?.toUpperCase()})
+            </div>
         </div>
       )}
 

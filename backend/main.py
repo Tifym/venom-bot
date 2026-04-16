@@ -13,6 +13,8 @@ from .database.redis_client import redis_client
 from .core.websocket_manager import MultiWebSocketManager
 from .core.telegram_bot import telegram_bot_instance
 from .core.state import signal_engine
+from .core.sentiment import sentiment_tracker
+from .core.news_aggregator import news_aggregator
 import backend.core.telegram_bot as tb_module
 from .api import routes, websocket as ws_router
 from .api.routes import load_config_from_redis
@@ -45,6 +47,22 @@ ws_manager.add_source("bybit", BYBIT_WS,
     ping_msg={"op": "ping"}
 )
 ws_manager.add_source("mempool", MEMPOOL_WS, subscription_msg={"action": "init"})
+
+# Tier 1 & 2 Specialized Sources
+DERIBIT_WS = "wss://www.deribit.com/ws/api/v2"
+KRAKEN_WS = "wss://ws.kraken.com/v2"
+BITFINEX_WS = "wss://api.bitfinex.com/ws/2"
+
+ws_manager.add_source("deribit", DERIBIT_WS, subscription_msg={
+    "jsonrpc": "2.0", "id": 1, "method": "public/subscribe", 
+    "params": {"channels": ["ticker.BTC-PERPETUAL.100ms", "book.BTC-PERPETUAL.100ms"]}
+})
+ws_manager.add_source("kraken", KRAKEN_WS, subscription_msg={
+    "method": "subscribe", "params": {"channel": "ticker", "symbol": ["BTC/USD"]}
+})
+ws_manager.add_source("bitfinex", BITFINEX_WS, subscription_msg={
+    "event": "subscribe", "channel": "ticker", "symbol": "tBTCUSD"
+})
 
 # Mempool needs a follow-up 'want' after init periodically or on connect
 async def _handle_mempool_extra(source, data):
@@ -148,8 +166,30 @@ async def _process_stream(source: str, data: Dict[str, Any]):
             pass
             
         elif source == "mempool":
-            # mempool tx check logic
-            pass
+            await _handle_mempool_extra(source, data)
+
+        elif source in ["deribit", "kraken", "bitfinex"]:
+            price = 0
+            if source == "deribit":
+                # Deribit ticker format
+                params = data.get("params", {})
+                price = float(params.get("data", {}).get("last_price", 0))
+            elif source == "kraken":
+                # Kraken v2 ticker format
+                k_data = data.get("data", [{}])[0]
+                price = float(k_data.get("last", 0))
+            elif source == "bitfinex":
+                # Bitfinex positional ticker
+                if isinstance(data, list) and len(data) > 7:
+                    price = float(data[7])
+            
+            if price > 0:
+                signal_engine.update_cross_price(source, price)
+                await ws_router.frontend_ws_manager.broadcast({
+                    "type": "cross_price",
+                    "source": source,
+                    "price": price
+                })
             
     except Exception as e:
         logger.error("stream_parse_error", source=source, error=str(e))
@@ -158,6 +198,9 @@ ws_manager.add_callback("binance", _process_stream)
 ws_manager.add_callback("bybit", _process_stream)
 ws_manager.add_callback("mempool", _process_stream)
 ws_manager.add_callback("mempool", _handle_mempool_extra)
+ws_manager.add_callback("deribit", _process_stream)
+ws_manager.add_callback("kraken", _process_stream)
+ws_manager.add_callback("bitfinex", _process_stream)
 
 def get_health_status() -> dict:
     def _calc_latency(conn_name):
@@ -221,6 +264,24 @@ async def lifespan(app: FastAPI):
             })
     
     asyncio.create_task(_push_status_telemetry())
+    
+    # Macro poller
+    async def macro_poller():
+        while True:
+            try:
+                await sentiment_tracker.poll_fng()
+                news = await news_aggregator.poll_news()
+                await ws_router.frontend_ws_manager.broadcast({
+                    "type": "macro_update",
+                    "sentiment": sentiment_tracker.last_score,
+                    "sentiment_text": sentiment_tracker.last_value_text,
+                    "news": news
+                })
+            except Exception as e:
+                logger.error("macro_poll_failed", error=str(e))
+            await asyncio.sleep(60)
+
+    asyncio.create_task(macro_poller())
 
     yield
 
@@ -251,7 +312,10 @@ async def health_check():
         "ws_states": {
             "binance": ws_manager.connections["binance"].state,
             "bybit": ws_manager.connections["bybit"].state,
-            "mempool": ws_manager.connections["mempool"].state
+            "mempool": ws_manager.connections["mempool"].state,
+            "deribit": ws_manager.connections["deribit"].state,
+            "kraken": ws_manager.connections["kraken"].state,
+            "bitfinex": ws_manager.connections["bitfinex"].state
         },
         **health
     }

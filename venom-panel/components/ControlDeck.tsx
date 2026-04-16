@@ -14,8 +14,9 @@ export function ControlDeck() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [config, setConfig] = useState<any>(null);
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [news, setNews] = useState<any[]>([]);
+  const [sentiment, setSentiment] = useState({ score: 50, text: "Neutral" });
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const { data: wsData } = useWebSocket();
 
   // Load config and profiles on mount
@@ -37,7 +38,12 @@ export function ControlDeck() {
     if (wsData.type === "config_update" && wsData.config) {
       setConfig(wsData.config);
     }
+    if (wsData.type === "macro_update") {
+      if (wsData.news) setNews(wsData.news);
+      if (wsData.sentiment) setSentiment({ score: wsData.sentiment, text: wsData.sentiment_text });
+    }
   }, [wsData]);
+ Riverside
 
   const handlePresetChange = async (newMode: string) => {
     // When switching preset, POST to backend which reloads full preset definition
@@ -129,8 +135,22 @@ export function ControlDeck() {
   const isCustom = config.mode?.toUpperCase() === "CUSTOM";
 
   return (
-    <div className="flex flex-col w-full">
-      {/* Header row */}
+        </div>
+
+        {/* NEWS TICKER */}
+        <div className="bg-toxic/5 border-y border-toxic/10 overflow-hidden whitespace-nowrap py-1">
+            <div className="flex gap-8 animate-marquee">
+                {news.length > 0 ? news.map((item, i) => (
+                    <a key={i} href={item.link} target="_blank" className="text-[9px] font-mono text-toxic/70 hover:text-toxic flex items-center gap-2">
+                        <span className="opacity-40">[{item.source}]</span> {item.title}
+                    </a>
+                )) : (
+                    <span className="text-[9px] font-mono text-toxic/30 uppercase tracking-widest pl-4">Waiting for incoming news flashes...</span>
+                )}
+            </div>
+        </div>
+
+        {/* Header row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex items-center gap-3">
             <div className={`w-2 h-2 rounded-full ${wsData?.status === 'HEALTHY' ? 'bg-toxic shadow-[0_0_8px_#00FF41]' : 'bg-red-500 animate-pulse'} `} />
@@ -158,9 +178,27 @@ export function ControlDeck() {
 
         <div className="flex items-center gap-4">
           <div className="hidden lg:flex flex-col items-end">
+             <span className="text-[8px] font-mono text-white/30 uppercase tracking-tighter">Market Sentiment</span>
+             <span className={`text-[10px] font-mono font-bold uppercase tracking-widest ${
+                 sentiment.score < 25 ? 'text-red-500' : sentiment.score > 75 ? 'text-toxic' : 'text-white'
+             }`}>{sentiment.score} - {sentiment.text}</span>
+          </div>
+
+          <div className="hidden lg:flex flex-col items-end">
              <span className="text-[8px] font-mono text-white/30 uppercase tracking-tighter">Engine Status</span>
              <span className="text-[10px] font-mono text-toxic font-bold uppercase tracking-widest">{config.status}</span>
           </div>
+          
+          <button
+            onClick={handleSaveConfig}
+            disabled={saving}
+            className={`p-2 rounded-lg border transition-all ${
+              saving ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 active:scale-95'
+            } bg-toxic/10 border-toxic/20 text-toxic`}
+            title="Save All Atomic Nodes"
+          >
+            <Save size={20} />
+          </button>
 
           <button
             className="text-white/40 hover:text-white transition-colors p-2 bg-white/5 rounded-lg border border-white/5"
@@ -421,6 +459,43 @@ export function ControlDeck() {
                      ))}
                    </div>
                  </div>
+              </div>
+
+              {/* UNIVERSAL DATA MATRIX HUB */}
+              <div className="flex flex-col gap-3 mt-4 p-4 bg-toxic/5 rounded-lg border border-toxic/10">
+                  <label className="text-[10px] text-toxic font-mono uppercase tracking-[0.2em] flex items-center gap-2 font-black">
+                    <Layers size={14} className="animate-pulse" /> Universal Data Matrix
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1">
+                    {['binance', 'bybit', 'deribit', 'kraken', 'bitfinex', 'mempool', 'news'].map(src => {
+                      const key = `source_${src}`;
+                      const isActive = config.preset?.custom_options?.[key] ?? true;
+                      return (
+                        <button
+                          key={src}
+                          onClick={() => {
+                            setConfig({
+                              ...config,
+                              preset: {
+                                ...config.preset,
+                                custom_options: {
+                                  ...config.preset.custom_options,
+                                  [key]: !isActive
+                                }
+                              }
+                            });
+                          }}
+                          className={`py-2 px-1 rounded border text-[8px] font-black uppercase text-center transition-all ${
+                            isActive
+                              ? 'bg-toxic/20 border-toxic text-toxic shadow-[0_0_10px_rgba(0,255,65,0.2)]'
+                              : 'bg-black/40 border-white/5 text-white/20 hover:border-white/20'
+                          }`}
+                        >
+                          {src}
+                        </button>
+                      );
+                    })}
+                  </div>
               </div>
 
               {/* Raw Data Thresholds */}

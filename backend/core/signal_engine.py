@@ -15,6 +15,7 @@ from .orderbook import OrderBookTracker
 from .funding_tracker import FundingTracker
 from .liquidation_monitor import LiquidationMonitor
 from ..config.presets import get_preset
+from .sentiment import sentiment_tracker
 
 logger = structlog.get_logger()
 
@@ -36,8 +37,10 @@ class SignalEngine:
             "div": False,
             "bb": False,
             "ob": False,
-            "liq": False
+            "liq": False,
+            "sentiment": False
         }
+        self.cross_prices: Dict[str, float] = {}
 
     async def _async_div(self, candles: List) -> tuple:
         return await asyncio.to_thread(self.div_detector.detect_divergence, candles)
@@ -88,12 +91,27 @@ class SignalEngine:
             return 15
         return 0
 
+    def update_cross_price(self, source: str, price: float):
+        self.cross_prices[source] = price
+
+    def _get_cross_deviation(self, current_price: float) -> float:
+        if not self.cross_prices: return 0.0
+        # Average of all cross-exchange prices
+        avg = sum(self.cross_prices.values()) / len(self.cross_prices)
+        return abs(current_price - avg) / avg
+
     async def evaluate(self, current_price: float, candles: Dict[str, List], is_ws_healthy: bool) -> Optional[VenomSignal]:
         start_time = time.perf_counter()
         
         try:
             m1_candles = candles.get('1m', [])
             if not is_ws_healthy or not m1_candles:
+                return None
+
+            # 0. Cross-Exchange Veto (Circuit Breaker)
+            deviation = self._get_cross_deviation(current_price)
+            if deviation > 0.005: # > 0.5% divergence
+                logger.warning("signal_veto_exchange_divergence", dev=deviation)
                 return None
 
             # 1. Config & Multi-TF Matrix Setup
@@ -161,12 +179,24 @@ class SignalEngine:
             if opts and liq_boost > 0 and self.liq_monitor.last_burst_usd < opts.liq_burst_usd:
                 liq_boost = 0 # Reject if burst is too small
 
+            # 6. Sentiment Matrix
+            sentiment_score = 0
+            fng = sentiment_tracker.last_score
+            if fng < 20: # Extreme Fear -> Potential Bottom
+                sentiment_score = 10 if direction == SignalDirection.LONG else -10
+            elif fng > 80: # Extreme Greed -> Potential Top
+                sentiment_score = 10 if direction == SignalDirection.SHORT else -10
+
+            # Total Scoring
+            total_score = ob_score + div_total + fund_score + pa_score + vol_score + liq_boost + bb_total + sentiment_score
+            
             # Store for broadcast
             self.last_eval_results = {
                 "div": div_total > 5,
                 "bb": bb_total > 5,
                 "ob": ob_score >= (opts.ob_ratio_min if opts else 2.5),
-                "liq": liq_boost > 0
+                "liq": liq_boost > 0,
+                "sentiment": abs(sentiment_score) > 0
             }
 
             if total_score < self.preset.min_score:
