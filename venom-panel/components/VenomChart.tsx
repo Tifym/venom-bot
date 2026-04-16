@@ -307,7 +307,7 @@ export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
               });
           }
 
-          if (liveData.divergence?.score > 0 && toggles.div) {
+          if (liveData.divergence && liveData.divergence.score && liveData.divergence.score > 0 && toggles.div) {
               const time = lastTimeRef.current || Math.floor(Date.now() / 1000);
               const isBull = liveData.divergence.type.includes('BULL');
               const currentMarkers = seriesRef.current.getMarkers() || [];
@@ -523,20 +523,22 @@ export function VenomChart({ liveData, toggles, setToggles }: VenomChartProps) {
       <div className="absolute top-20 right-4 z-10 flex flex-col gap-4 items-end">
           {/* Sentiment Gauge */}
           {liveData?.sentiment !== undefined && (
-              <div className={`bg-black/80 border p-3 rounded-lg backdrop-blur-xl flex flex-col items-center w-36 shadow-2xl transition-all ${
-                  liveData.sentiment < 25 ? 'border-red-500 shadow-red-500/20' :
-                  liveData.sentiment > 75 ? 'border-toxic shadow-toxic/20' :
-                  'border-white/10'
+              <div className={`p-4 border border-white/5 rounded-xl flex flex-col items-center justify-center gap-2 bg-black/40 ${
+                  (liveData?.sentiment ?? 50) < 25 ? 'border-red-500 shadow-red-500/20' :
+                  (liveData?.sentiment ?? 50) > 75 ? 'border-toxic shadow-toxic/20' :
+                  ''
               }`}>
-                  <span className="text-[10px] text-white/30 uppercase font-mono tracking-widest mb-1">SENTIMENT</span>
-                  <span className={`text-2xl font-black tabular-nums ${
-                      (liveData.sentiment >= 70) ? 'text-toxic' : (liveData.sentiment <= 30) ? 'text-red-500' : 'text-white'
-                  }`}>
-                      {liveData.sentiment}/100
-                  </span>
-                  <span className="text-[9px] text-white/50 font-mono text-center leading-none mt-1 uppercase">
-                      {liveData.sentiment_text || 'SCANNING...'}
-                  </span>
+                  <span className="text-[10px] text-white/50 font-mono tracking-[0.2em] uppercase">Fear & Greed</span>
+                  <div className="flex flex-col items-center">
+                      <span className={`text-2xl font-black font-mono tracking-tighter ${
+                      (liveData?.sentiment ?? 50) >= 70 ? 'text-toxic' : (liveData?.sentiment ?? 50) <= 30 ? 'text-red-500' : 'text-white'
+                      }`}>
+                      {liveData?.sentiment ?? 50}/100
+                      </span>
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest mt-1">
+                      {liveData?.sentiment_text || 'SCANNING...'}
+                      </span>
+                  </div>
               </div>
           )}
 
