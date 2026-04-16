@@ -240,9 +240,20 @@ async def get_stats():
         for s in signal_engine.recent_signals:
             z = s.zone
             zone_counts[z] = zone_counts.get(z, 0) + 1
+            
+            # Extract confluence securely (handle DB records vs live objects)
+            conf = s.confluence
+            if isinstance(conf, str):
+                import json
+                try: conf = json.loads(conf)
+                except: conf = {}
+            elif hasattr(conf, 'dict'):
+                conf = conf.dict()
+
             # Best TF logic
-            if hasattr(s, 'confluence') and s.confluence.divergence_tfs:
-                tf = s.confluence.divergence_tfs[0]
+            tfs = conf.get('divergence_tfs', []) if isinstance(conf, dict) else getattr(conf, 'divergence_tfs', [])
+            if tfs:
+                tf = tfs[0]
                 tf_counts[tf] = tf_counts.get(tf, 0) + 1
         
         best_zone = max(zone_counts, key=zone_counts.get) if zone_counts else "NONE"

@@ -131,43 +131,44 @@ export function ControlDeck() {
   return (
     <div className="flex flex-col w-full">
       {/* Header row */}
-      <div className="flex justify-between items-center p-4 border-b border-white/5 bg-black/20">
-        <div className="flex items-center gap-3">
-          <Zap size={16} className="text-venom-green" />
-          <h2 className="font-mono text-sm tracking-widest text-venom-green font-semibold uppercase">
-            Signal Forge
-          </h2>
-          <span className="text-[10px] font-mono text-white/30 bg-white/5 px-2 py-0.5 rounded">
-            {config.mode}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Preset quick-switcher */}
-          <div className="flex gap-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${wsData?.status === 'HEALTHY' ? 'bg-toxic shadow-[0_0_8px_#00FF41]' : 'bg-red-500 animate-pulse'} `} />
+            <h2 className="font-mono text-sm tracking-[0.2em] text-white/90 font-black uppercase">
+              VENOM CORE <span className="text-white/20">V2</span>
+            </h2>
+          </div>
+          
+          <div className="flex flex-wrap gap-1 bg-black/40 p-1 rounded border border-white/5">
             {PRESETS.map(p => (
               <button
                 key={p}
                 onClick={() => handlePresetChange(p)}
-                className={`text-[10px] font-mono px-2 py-1 rounded transition-all ${
+                className={`text-[9px] font-black px-3 py-1.5 rounded transition-all duration-300 ${
                   config.mode === p
-                    ? "bg-venom-green text-black font-bold"
-                    : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                    ? (p === "RAMPAGE" ? "bg-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)] scale-105" : "bg-toxic text-black shadow-[0_0_15px_rgba(0,255,65,0.4)] scale-105")
+                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                {p === "SILENT" ? "SIL" : p === "HUNTER" ? "HNT" : p === "PREDATOR" ? "PRD" : p === "RAMPAGE" ? "RMP" : "CST"}
+                {p}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="hidden lg:flex flex-col items-end">
+             <span className="text-[8px] font-mono text-white/30 uppercase tracking-tighter">Engine Status</span>
+             <span className="text-[10px] font-mono text-toxic font-bold uppercase tracking-widest">{config.status}</span>
+          </div>
 
           <button
-            className="text-white/40 hover:text-white transition-colors p-1"
+            className="text-white/40 hover:text-white transition-colors p-2 bg-white/5 rounded-lg border border-white/5"
             onClick={() => setIsExpanded(!isExpanded)}
           >
-            {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </button>
         </div>
-      </div>
 
       {/* Expanded config panel */}
       {isExpanded && (

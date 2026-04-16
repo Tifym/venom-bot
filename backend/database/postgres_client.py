@@ -23,6 +23,7 @@ class SignalRecord(Base):
     tp1 = Column(Float, nullable=False)
     tp2 = Column(Float, nullable=False)
     status = Column(String, nullable=False, default="PENDING")
+    confluence = Column(String, nullable=True) # JSON encoded ConfluenceMetrics
 
 class DrawingRecord(Base):
     __tablename__ = 'drawings'
@@ -57,6 +58,7 @@ class PostgresClient:
         if not self.async_session: return
         async with self.async_session() as session:
             try:
+                import json
                 record = SignalRecord(
                     id=s.id,
                     timestamp=s.timestamp,
@@ -69,6 +71,7 @@ class PostgresClient:
                     stop_loss=s.stop_loss,
                     tp1=s.tp1,
                     tp2=s.tp2,
+                    confluence=json.dumps(s.confluence.dict()) if hasattr(s, 'confluence') else None,
                     status=getattr(s, 'status', 'PENDING')
                 )
                 session.add(record)

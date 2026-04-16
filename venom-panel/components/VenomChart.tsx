@@ -152,8 +152,32 @@ export function VenomChart({ liveData }: { liveData?: any }) {
 
   // Sync Drawings to Chart
   useEffect(() => {
-    if (!seriesRef.current) return;
-    // (Actual drawing synchronization logic would clear old lines and add new LineSeries/PriceLines)
+    if (!seriesRef.current || !chartRef.current) return;
+
+    // Clear old drawings
+    drawingSeriesRef.current.forEach(s => chartRef.current.removeSeries(s));
+    drawingSeriesRef.current = [];
+
+    // Render horizontal lines as PriceLines on the main series (simpler for now)
+    // or as separate LineSeries for more complex shapes.
+    drawings.forEach(d => {
+        if (d.type === 'horizontal') {
+            const pl = seriesRef.current.createPriceLine({
+                price: d.data.price,
+                color: '#ffffff80',
+                lineWidth: 1,
+                lineStyle: 0,
+                axisLabelVisible: true,
+                title: 'LEVEL',
+            });
+            drawingSeriesRef.current.push({ remove: () => seriesRef.current.removePriceLine(pl) });
+        }
+    });
+
+    return () => {
+        drawingSeriesRef.current.forEach(s => s.remove());
+        drawingSeriesRef.current = [];
+    };
   }, [drawings]);
 
   // Handle Timeframe Switch
@@ -220,17 +244,18 @@ export function VenomChart({ liveData }: { liveData?: any }) {
           if (liveData.fib_pockets && toggles.fib) {
               Object.entries(liveData.fib_pockets).forEach(([zone, range]: any) => {
                   if (!range || range.length < 2) return;
-                  const colors: any = { omega: '#00FF41', alpha: '#FF0040', beta: '#f59e0b' };
+                  const colors: any = { omega: '#00FF41', alpha: '#FF0040', beta: '#f59e0b', delta: '#3b82f6', gamma: '#6366f1' };
                   const color = colors[zone] || 'rgba(255,255,255,0.2)';
                   
+                  // For pockets, we draw two lines and slightly color the gap
                   range.forEach((price: number, i: number) => {
                     const pl = seriesRef.current.createPriceLine({
                       price,
-                      color: color + (i === 0 ? '40' : '20'),
-                      lineWidth: 1,
+                      color: color,
+                      lineWidth: i === 0 ? 2 : 1,
                       lineStyle: 1,
                       axisLabelVisible: true,
-                      title: `${zone.toUpperCase()} (${liveData.tf_source || activeTF})`,
+                      title: i === 0 ? `${zone.toUpperCase()} ZONE` : '',
                     });
                     fibZonesRef.current.push(pl);
                   });
@@ -382,6 +407,25 @@ export function VenomChart({ liveData }: { liveData?: any }) {
       </div>
 
       <div ref={chartContainerRef} className="absolute inset-0" />
+
+      {/* MATRIX STATUS LIGHTS (Confluence HUD) */}
+      {liveData?.status && (
+        <div className="absolute bottom-16 left-4 z-10 flex gap-2">
+            {Object.entries(liveData.status).map(([key, isActive]: any) => (
+                <div key={key} className="flex flex-col items-center gap-1 group/item">
+                    <div className={`w-3 h-3 rounded-sm border ${
+                        isActive ? 'bg-toxic shadow-[0_0_10px_#00FF41] border-toxic' : 'bg-black/40 border-white/10'
+                    } transition-all duration-300`} />
+                    <span className="text-[8px] font-mono uppercase text-white/50 group-hover/item:text-toxic">{key}</span>
+                </div>
+            ))}
+        </div>
+      )}
+
+      {/* SIGNAL PULSE OVERLAY */}
+      {liveData?.type === 'signal' && (
+        <div className="absolute inset-0 pointer-events-none animate-pulse bg-toxic/5 z-0" />
+      )}
       
       {/* Advanced Timeframe Switcher */}
       <div className="absolute bottom-4 left-4 z-10 flex gap-1 bg-black/60 p-1 rounded border border-white/10 opacity-60 group-hover:opacity-100 transition-opacity flex-wrap max-w-[300px]">
@@ -398,8 +442,15 @@ export function VenomChart({ liveData }: { liveData?: any }) {
         ))}
       </div>
 
-      <div className="absolute top-4 right-4 z-10 text-[10px] font-mono text-toxic bg-toxic/5 p-2 rounded border border-toxic/20 pointer-events-none">
-        BTCUSDT {activeTF.toUpperCase()} │ ATOMIC SYMBOL
+      <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1">
+        <div className="text-[10px] font-mono text-toxic bg-toxic/5 p-2 rounded border border-toxic/20 pointer-events-none">
+          BTCUSDT {activeTF.toUpperCase()} │ ATOMIC SYMBOL
+        </div>
+        {liveData?.type === 'signal' && (
+            <div className={`text-[12px] font-black italic px-3 py-1 bg-toxic text-black shadow-lg animate-bounce`}>
+                NEW {liveData.data.direction} SIGNAL DETECTED
+            </div>
+        )}
       </div>
     </div>
   );

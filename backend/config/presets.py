@@ -14,10 +14,12 @@ class CustomOptions(BaseModel):
     custom_fibs: Dict[str, List[float]] = {}
     
     # Raw Data Matrix
-    ob_ratio_min: float = 2.5
-    liq_burst_usd: float = 50000.0
-    oi_spike_pct: float = 1.2
     mempool_fee_min: int = 5
+    
+    # BBands Settings (Found Missing)
+    bbands_enabled: bool = True
+    bbands_upper: float = 2.0
+    bbands_lower: float = 2.0
     
     # Visuals
     tf_chart: str = "1m"
@@ -29,6 +31,7 @@ class PresetMode(BaseModel):
     cooldown_dir: int
     daily_cap: int = 200
     atr_filter: float = 0.0
+    fib_required: bool = True  # Toggle for zone touch gate
     custom_options: Optional[CustomOptions] = None
 
 PRESETS = {
@@ -59,7 +62,8 @@ PRESETS = {
         zones=["alpha", "beta", "gamma", "delta", "omega"],
         cooldown_dir=0,
         daily_cap=500,
-        atr_filter=0.05
+        atr_filter=0.05,
+        fib_required=False # RAMPAGE fires everywhere
     ),
     "CUSTOM": PresetMode(
         min_score=50,

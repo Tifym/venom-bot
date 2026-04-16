@@ -23,7 +23,7 @@ class SignalEngine:
         self.preset = get_preset(mode)
         self.mode = SignalMode[mode.upper()]
         
-        self.fib_tracker = FibonacciPocket()
+        self.fib_tracker = FibonacciPocket(deviation=0.001) # 0.1% sensitivity for 1m
         self.div_detector = DivergenceDetector()
         self.ob_tracker = OrderBookTracker()
         self.funding_tracker = FundingTracker()
@@ -32,6 +32,12 @@ class SignalEngine:
         self.last_signal_time = {}
         self.recent_signals = []
         self.rejected_signals = 0
+        self.last_eval_results = {
+            "div": False,
+            "bb": False,
+            "ob": False,
+            "liq": False
+        }
 
     async def _async_div(self, candles: List) -> tuple:
         return await asyncio.to_thread(self.div_detector.detect_divergence, candles)
@@ -71,7 +77,8 @@ class SignalEngine:
             return 0
             
         c_closes = pd.Series([c.close for c in candles[-20:]])
-        bb = BollingerBands(close=c_closes, window=20, window_dev=self.preset.custom_options.bbands_upper)
+        upper_dev = opts.bbands_upper if opts else 2.0
+        bb = BollingerBands(close=c_closes, window=20, window_dev=upper_dev)
         upper = bb.bollinger_hband().iloc[-1]
         lower = bb.bollinger_lband().iloc[-1]
         c_price = c_closes.iloc[-1]
@@ -106,12 +113,17 @@ class SignalEngine:
                     zone = self.fib_tracker.check_zone_touch(current_price)
                     if zone: current_zone = zone # Capture zone
 
-            if not current_zone or current_zone.lower() not in [z.lower() for z in self.preset.zones]:
-                return None
+            if self.preset.fib_required:
+                if not current_zone or current_zone.lower() not in [z.lower() for z in self.preset.zones]:
+                    logger.debug("signal_rejected_no_zone", zone=current_zone)
+                    return None
+            else:
+                current_zone = current_zone or "OPEN_FIELD" # For visuals
 
             # 3. Orderbook Matrix (Atomic Check)
             ob_score, ob_dir = await self._async_ob()
             if ob_dir == "NONE" or (opts and ob_score < opts.ob_ratio_min):
+                logger.debug("signal_rejected_low_ob", score=ob_score, min=opts.ob_ratio_min if opts else 0)
                 self.rejected_signals += 1
                 return None
             
@@ -149,10 +161,16 @@ class SignalEngine:
             if opts and liq_boost > 0 and self.liq_monitor.last_burst_usd < opts.liq_burst_usd:
                 liq_boost = 0 # Reject if burst is too small
 
-            # Total Scoring
-            total_score = ob_score + div_total + fund_score + pa_score + vol_score + liq_boost + bb_total
-            
+            # Store for broadcast
+            self.last_eval_results = {
+                "div": div_total > 5,
+                "bb": bb_total > 5,
+                "ob": ob_score >= (opts.ob_ratio_min if opts else 2.5),
+                "liq": liq_boost > 0
+            }
+
             if total_score < self.preset.min_score:
+                logger.debug("signal_rejected_low_score", score=total_score, min=self.preset.min_score)
                 self.rejected_signals += 1
                 return None
 

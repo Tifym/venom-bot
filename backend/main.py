@@ -105,6 +105,7 @@ async def _process_stream(source: str, data: Dict[str, Any]):
                         await ws_router.frontend_ws_manager.broadcast({
                             "type": "raw_tech",
                             "tf_source": "1m",
+                            "status": signal_engine.last_eval_results,
                             "divergence": {
                                 "type": signal_engine.div_detector.last_type.name if hasattr(signal_engine.div_detector.last_type, "name") else "NONE",
                                 "score": signal_engine.div_detector.last_score
