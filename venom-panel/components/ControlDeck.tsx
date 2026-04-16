@@ -159,7 +159,7 @@ export function ControlDeck({ toggles, setToggles }: ControlDeckProps) {
         {/* Header row */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${wsData?.status === 'HEALTHY' ? 'bg-toxic shadow-[0_0_8px_#00FF41]' : 'bg-red-500 animate-pulse'} `} />
+            <div className={`w-2 h-2 rounded-full ${wsData != null ? 'bg-toxic shadow-[0_0_8px_#00FF41]' : 'bg-red-500 animate-pulse'} `} />
             <h2 className="font-mono text-sm tracking-[0.2em] text-white/90 font-black uppercase">
               VENOM CORE <span className="text-white/20">V2</span>
             </h2>
