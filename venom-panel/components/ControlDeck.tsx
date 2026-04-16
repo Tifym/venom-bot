@@ -17,6 +17,7 @@ export function ControlDeck() {
   const [news, setNews] = useState<any[]>([]);
   const [sentiment, setSentiment] = useState({ score: 50, text: "Neutral" });
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const { data: wsData } = useWebSocket();
 
   // Load config and profiles on mount
@@ -60,7 +61,7 @@ export function ControlDeck() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveConfig = async () => {
     if (!config) return;
     setSaving(true);
     try {
@@ -554,7 +555,7 @@ export function ControlDeck() {
               <RotateCcw size={13} /> RELOAD
             </button>
             <button
-              onClick={handleSave}
+              onClick={handleSaveConfig}
               disabled={saving}
               className={`flex items-center gap-2 text-xs font-mono px-6 py-2 rounded font-semibold transition-all ${
                 saved
