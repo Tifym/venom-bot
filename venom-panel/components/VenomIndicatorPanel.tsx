@@ -54,19 +54,19 @@ export function VenomIndicatorPanel({ title, data, type, height = 150, syncScale
 
         if (type === 'macd') {
             const hist = chart.addHistogramSeries({ color: '#ffffff20', priceFormat: { type: 'volume' } });
-            const macd = chart.addLineSeries({ color: colors[0], lineWidth: 1.5 });
+            const macd = chart.addLineSeries({ color: colors[0], lineWidth: 2 });
             const signal = chart.addLineSeries({ color: colors[1], lineWidth: 1, lineStyle: 2 });
             seriesRef.current = [hist, macd, signal];
         } else if (type === 'kdj') {
             const k = chart.addLineSeries({ color: colors[0], lineWidth: 1 });
             const d = chart.addLineSeries({ color: colors[1], lineWidth: 1 });
-            const j = chart.addLineSeries({ color: colors[2], lineWidth: 1.5 });
+            const j = chart.addLineSeries({ color: colors[2], lineWidth: 2 });
             seriesRef.current = [k, d, j];
         } else if (type === 'histogram') {
             const hist = chart.addHistogramSeries({ color: colors[0] });
             seriesRef.current = [hist];
         } else {
-            const line = chart.addLineSeries({ color: colors[0], lineWidth: 1.5 });
+            const line = chart.addLineSeries({ color: colors[0], lineWidth: 2 });
             seriesRef.current = [line];
         }
 
