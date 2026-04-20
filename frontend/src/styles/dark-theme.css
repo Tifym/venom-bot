@@ -1,0 +1,11 @@
+:root { --bg-color: #0a0a0a; --card-bg: #1a1a1a; --text-primary: #e0e0e0; --green: #00c853; --red: #ff1744; }
+body { background-color: var(--bg-color); color: var(--text-primary); font-family: sans-serif; }
+.dashboard-container { display: flex; flex-direction: column; height: 100vh; padding: 1rem; gap: 1rem; }
+.header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 1rem; }
+.signal-grid { display: flex; flex-direction: column; gap: 0.5rem; background: var(--card-bg); padding: 1rem; border-radius: 8px; }
+.row { display: flex; align-items: center; gap: 1rem; }
+.row-label { width: 60px; color: #888; font-size: 0.8rem; }
+.boxes { display: flex; gap: 4px; }
+.box { width: 40px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 0.7rem; font-weight: bold; border: 1px solid #333; }
+.box.BULLISH { background: #00c85322; border-color: var(--green); color: var(--green); }
+.box.BEARISH { background: #ff174422; border-color: var(--red); color: var(--red); }
